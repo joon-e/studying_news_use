@@ -1,0 +1,86 @@
+/* Title styles */
+
+.title-slide .remark-slide-content {
+    background-color: #ffffff;
+}
+
+.title-slide h1 {
+    background-color: #59c7eb;
+    padding: 0 20px;
+    margin-bottom: 0;
+    font-size: 2em;
+    width: 70%;
+}
+
+.title-slide h2 {
+    background-color: #00a9e0;
+    padding: 0 20px;
+    margin-top: -1px;
+    font-size: 1.4em;
+    width: 70%;
+}
+
+.title-slide h3 {
+    padding: 0 20px;
+    margin-bottom: 0;
+    margin-top: 0;
+    font-size: 1em;
+}
+
+.title-slide h3:last-of-type {
+    margin-bottom: 50px;
+}
+
+/* General styles */
+
+a {
+    color: #59c7eb;
+}
+
+a:hover {
+    color: #00a9e0;
+}
+
+.remark-slide-content {
+    background-image: url('logo.svg');
+    background-repeat: no-repeat;
+    background-position: 98% 2%;
+    background-size: 200px;
+}
+
+.remark-slide-content h1 {
+    font-size: 2em;
+    border-bottom: 2px solid #59c7eb;
+    display: table;
+    min-width: 50%;
+}
+
+.remark-slide-content h2 {
+    font-size: 1.4em;
+}
+
+/* Special styles */
+
+.center h1 {
+    display: block;
+    border-bottom: none;
+}
+
+.inverse {
+  background-color: #59c7eb;
+  text-shadow: none;
+}
+
+.inverse .remark-slide-number {
+    color: #fff;
+}
+
+
+/* Special titles */
+
+.social_media {
+    background-image: url('logo.svg'), url('../img/1/social_media.jpg');
+    background-repeat: no-repeat, no-repeat;
+    background-position: 98% 2%, 100% 50%;
+    background-size: 200px, 55%;    
+}

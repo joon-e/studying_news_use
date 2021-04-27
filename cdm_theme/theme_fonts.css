@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700|Roboto+Mono&display=swap');
+
+body {
+  font-family: 'Open Sans','Arial', sans-serif;
+}
+
+.remark-code, .remark-inline-code {
+  font-family: 'Roboto Mono', monospace;
+}
