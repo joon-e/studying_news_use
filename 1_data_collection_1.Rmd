@@ -1,0 +1,131 @@
+---
+title: "Studying News Use with Computational Methods"
+subtitle: "Data Collection I: Collecting Social Media Data"
+author: "Julian Unkel"
+institute: "University of Konstanz"
+date: "2021/05/10"
+output:
+  xaringan::moon_reader:
+    css: [default, "cdm_theme/theme.css", "cdm_theme/theme_fonts.css"]
+    lib_dir: libs
+    nature:
+      ratio: "16:9"
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      titleSlideClass: ["left", "bottom", "title-slide", "social_media"]
+---
+
+# Agenda
+
+Collecting digital traces in social media via
+
+- API requests
+  - Basics
+  - Open APIs
+  - Restricted APIs
+- API wrapper packages
+  - Basics
+  - Example: Querying the Twitter API with `rtweet`
+- Social listening services
+  - CrowdTangle
+  - Other commercial options
+- Facepager
+
+---
+class: middle
+
+# API requests
+
+---
+
+# Basics: HTTP requests
+
+.pull-left[
+Think of accessing data on web servers (e.g., by opening a web site in a browser) via **HTTP** (Hypertext Transfer Protocol) as ordering a package via mail:
+
+- First, we place an order with our client, for example by typing an URL into a browser (*Request*)
+- The server sends our client a package (*Response*), consisting of two parts:
+  - _Header_: Sort of like the packing slip; contains lots of meta information, for example whether our package was delivered succesfully
+  - _Body_: The actual content of the package, for example an HTML file
+
+]
+
+.pull-right[
+![HTTP requests in the client–server model](img/1/client-server.png)
+HTTP requests in the client-server model
+]
+
+---
+
+# Basics: HTTP methods & status codes
+
+
+There are several different **request methods**, most importantly:
+
+- _GET_: Request data retrieval
+- _POST_: Request sending (=posting) data (e.g, web forms)
+
+--
+
+Response headers contain three-digit **status** codes that tell us if everything went okay or what went wrong. Most importantly:
+
+- _2xx_: Success! We usually want code _200_, telling us that everything is OK
+- _4xx_: Oh no, client error! This means: The problem is caused by the client (i.e., us=. You probably have encountered these:
+  - *403*: Forbidden - client is not allowed to access the requested resource
+  - *404*: Not found - client requested a resource that is not available on the server
+- *5xx*: Oh no, server error! For example, _503_ (service unavailable) tells us that the server is (currently) to busy to handle our request. 
+
+---
+
+# Basics: Writing HTTP requests in R
+
+We can write our own HTTP requests in R using the `httr` package. Let's install it if we haven't done so already:
+
+```{r eval=FALSE}
+install.packages("httr")
+```
+
+--
+
+After loading the package, we can use functions named after the request methods to send HTTP requests. Let's request your [course home page](https://www.wiwi.uni-konstanz.de/studium/master-of-science/seds/).
+
+```{r eval=FALSE}
+library(httr)
+seds_resp <- GET("https://www.wiwi.uni-konstanz.de/studium/master-of-science/seds/")
+```
+
+```{r echo=FALSE}
+library(httr)
+seds_resp <- readRDS("offline_data/1/seds_resp.rds")
+```
+
+--
+
+The response is a list object containing the 'whole package'. Let's first take a look at the status code:
+
+```{r}
+status_code(seds_resp)
+```
+
+Everything went OK!
+
+---
+
+# Basics: Writing HTTP requests in R
+
+We can now investigate the body - the actual content - of our response object:
+
+```{r}
+content(seds_resp)
+```
+
+The first lines tell us that we have successfully requested an `html_document`. We will deal with working with HTML documents in the next session. But you can already see parts of the `body` of the website (not to be confused with the body of the response).
+
+---
+class: middle
+# Thanks
+
+Credits:
+- Slides created with [`xaringan`](https://github.com/yihui/xaringan)
+- Title image by [Tracy Le Blank / Pexels](https://www.pexels.com/de-de/foto/person-mit-iphone-die-den-ordner-fur-soziale-netzwerke-anzeigt-607812/)
