@@ -75,6 +75,48 @@ a:hover {
     color: #fff;
 }
 
+/* Highlight */
+
+.vibrant-1 {
+  background-color: #0077bb;
+}
+
+.vibrant-2 {
+  background-color: #33bbee;
+}
+
+.vibrant-3 {
+  background-color: #009988;
+}
+
+.vibrant-4 {
+  background-color: #ee7733;
+}
+
+.vibrant-5 {
+  background-color: #cc3311;
+}
+
+.vibrant-6 {
+  background-color: #ee3377;
+}
+
+.vibrant-7 {
+  background-color: #bbbbbb;
+}
+
+/* Selection */
+
+::-moz-selection {
+  color: #ffffff;
+  background: #59c7eb;
+}
+
+::selection {
+  color: #ffffff;
+  background: #59c7eb;
+}
+
 
 /* Special titles */
 
