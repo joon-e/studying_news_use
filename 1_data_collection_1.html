@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Studying News Use with Computational Methods</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Julian Unkel" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link rel="stylesheet" href="cdm_theme/theme.css" type="text/css" />
+    <link rel="stylesheet" href="cdm_theme/theme_fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: left, bottom, title-slide, social_media, title-slide
+
+# Studying News Use with Computational Methods
+## Data Collection in R, Part I: Collecting Social Media Data
+### Julian Unkel
+### University of Konstanz
+### 2021/05/10
+
+---
+
+
+# Agenda
+
+Collecting digital traces in social media via
+
+- API requests
+  - Basics
+  - Open APIs
+  - Restricted APIs
+- API wrapper packages
+  - Basics
+  - Example: Querying the Twitter API with `rtweet`
+- Social listening services
+  - CrowdTangle
+  - Other commercial options
+- Facepager
+
+---
+class: middle
+
+# API requests
+
+---
+
+# Basics: HTTP requests
+
+.pull-left[
+Think of accessing data on web servers (e.g., by opening a web site in a browser) via **HTTP** (Hypertext Transfer Protocol) as ordering a package via mail:
+
+- First, we place an order with our client, for example by typing an URL into a browser (*Request*)
+- The server sends our client a package (*Response*), consisting of two parts:
+  - _Header_: Sort of like the packing slip; contains lots of meta information, for example whether our package was delivered succesfully
+  - _Body_: The actual content of the package, for example an HTML file
+
+]
+
+.pull-right[
+![HTTP requests in the client–server model](img/1/client-server.png)
+HTTP requests in the client-server model
+]
+
+---
+
+# Basics: HTTP methods &amp; status codes
+
+
+There are several different **request methods**, most importantly:
+
+- _GET_: Request data retrieval
+- _POST_: Request sending (=posting) data (e.g, web forms)
+
+--
+
+Response headers contain three-digit **status** codes that tell us if everything went okay or what went wrong. Most importantly:
+
+- _2xx_: Success! We usually want code _200_, telling us that everything is OK
+- _4xx_: Oh no, client error! This means: The problem is caused by the client (i.e., us). You have probably already encountered these:
+  - *403*: Forbidden - client is not allowed to access the requested resource
+  - *404*: Not found - client requested a resource that is not available on the server
+- *5xx*: Oh no, server error! For example, _503_ (service unavailable) tells us that the server is (currently) to busy to handle our request. 
+
+---
+
+# Basics: Writing HTTP requests in R
+
+We can write our own HTTP requests in R using the `httr` package. Let's install it if we haven't done so already:
+
+
+```r
+install.packages("httr")
+```
+
+--
+
+After loading the package, we can use functions named after the request methods to send HTTP requests. Let's request your [SEDS home page](https://www.wiwi.uni-konstanz.de/studium/master-of-science/seds/).
+
+
+```r
+library(httr)
+seds_resp &lt;- GET("https://www.wiwi.uni-konstanz.de/studium/master-of-science/seds/")
+```
+
+
+
+--
+
+The response is a list object containing the 'whole package'. Let's first take a look at the status code:
+
+
+```r
+status_code(seds_resp)
+```
+
+```
+## [1] 200
+```
+
+Everything went OK!
+
+---
+
+# Basics: Writing HTTP requests in R
+
+We can now investigate the body - the actual content - of our response object:
+
+
+```r
+content(seds_resp)
+```
+
+```
+## {html_document}
+## &lt;html lang="de"&gt;
+## [1] &lt;head&gt;\n&lt;meta http-equiv="Content-Type" content="text/html; charset=UTF-8 ...
+## [2] &lt;body class="faculty"&gt;\n\n    &lt;nav class="anchormenu" aria-label="Sprungm ...
+## [3] &lt;script src="https://www.wiwi.uni-konstanz.de/typo3temp/assets/compressed ...
+## [4] &lt;script src="https://www.wiwi.uni-konstanz.de/typo3temp/assets/compressed ...
+## [5] &lt;script type="text/javascript"&gt;\n/*&lt;![CDATA[*/\n/*TS_inlineFooter*/\n\t\t ...
+## [6] &lt;script type="text/javascript"&gt;\r\n  var _paq = _paq || [];\r\n  /* track ...
+## [7] &lt;script type="text/x-mathjax-config"&gt;\r\n      MathJax.Hub.Config({\r\n   ...
+## [8] &lt;script type="text/javascript" src="/MathJax/MathJax.js?config=TeX-AMS_HT ...
+```
+
+The first lines tell us that we have successfully requested an `html_document`. We will deal with working with HTML documents in the next session. But you can already see parts of the `body` of the website (not to be confused with the body of the response).
+
+---
+
+# Basics: What's in a URL?
+
+---
+
+# Basics: JSON
+
+---
+class: middle
+# Thanks
+
+Credits:
+- Slides created with [`xaringan`](https://github.com/yihui/xaringan)
+- Title image by [Tracy Le Blank / Pexels](https://www.pexels.com/de-de/foto/person-mit-iphone-die-den-ordner-fur-soziale-netzwerke-anzeigt-607812/)
+- Icons by [Bootstrap](https://icons.getbootstrap.com/)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

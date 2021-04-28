@@ -1,6 +1,6 @@
 ---
 title: "Studying News Use with Computational Methods"
-subtitle: "Data Collection I: Collecting Social Media Data"
+subtitle: "Data Collection in R, Part I: Collecting Social Media Data"
 author: "Julian Unkel"
 institute: "University of Konstanz"
 date: "2021/05/10"
@@ -71,7 +71,7 @@ There are several different **request methods**, most importantly:
 Response headers contain three-digit **status** codes that tell us if everything went okay or what went wrong. Most importantly:
 
 - _2xx_: Success! We usually want code _200_, telling us that everything is OK
-- _4xx_: Oh no, client error! This means: The problem is caused by the client (i.e., us=. You probably have encountered these:
+- _4xx_: Oh no, client error! This means: The problem is caused by the client (i.e., us). You have probably already encountered these:
   - *403*: Forbidden - client is not allowed to access the requested resource
   - *404*: Not found - client requested a resource that is not available on the server
 - *5xx*: Oh no, server error! For example, _503_ (service unavailable) tells us that the server is (currently) to busy to handle our request. 
@@ -88,7 +88,7 @@ install.packages("httr")
 
 --
 
-After loading the package, we can use functions named after the request methods to send HTTP requests. Let's request your [course home page](https://www.wiwi.uni-konstanz.de/studium/master-of-science/seds/).
+After loading the package, we can use functions named after the request methods to send HTTP requests. Let's request your [SEDS home page](https://www.wiwi.uni-konstanz.de/studium/master-of-science/seds/).
 
 ```{r eval=FALSE}
 library(httr)
@@ -123,9 +123,18 @@ content(seds_resp)
 The first lines tell us that we have successfully requested an `html_document`. We will deal with working with HTML documents in the next session. But you can already see parts of the `body` of the website (not to be confused with the body of the response).
 
 ---
+
+# Basics: What's in a URL?
+
+---
+
+# Basics: JSON
+
+---
 class: middle
 # Thanks
 
 Credits:
 - Slides created with [`xaringan`](https://github.com/yihui/xaringan)
 - Title image by [Tracy Le Blank / Pexels](https://www.pexels.com/de-de/foto/person-mit-iphone-die-den-ordner-fur-soziale-netzwerke-anzeigt-607812/)
+- Icons by [Bootstrap](https://icons.getbootstrap.com/)
