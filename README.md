@@ -23,7 +23,7 @@ Collecting digital trace data from social media via API requests, API wrapper pa
 
 - Slides: [HTML] / [PDF]
 - Readings:
-  - Boumans, Jelle W., and Damian Trilling. 2016. „Taking Stock of the Toolkit. An Overview of Relevant Automated Content Analysis Approaches and Techniques for Digital Journalism Scholars“. *Digital Journalism* 4 (1): 8–23. [https://doi.org/10.4324/9781315115047-2](https://doi.org/10.4324/9781315115047-2).
+  - Boumans, Jelle W., and Damian Trilling. 2016. „Taking Stock of the Toolkit. An Overview of Relevant Automated Content Analysis Approaches and Techniques for Digital Journalism Scholars“. *Digital Journalism* 4 (1): 8–23. [https://doi.org/10.1080/21670811.2015.1096598](https://doi.org/10.1080/21670811.2015.1096598).
 
 ### Text Analysis in R, Part I: Text Description, Word Metrics and Dictionary Methods (2021-06-21)
 
