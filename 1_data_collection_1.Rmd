@@ -18,19 +18,28 @@ output:
 
 # Agenda
 
-Collecting digital traces in social media via
+.pull-left[As we have seen in the previous sessions, social media play a key role for users' news consumption. 
+
+By their design, they record human behavior (and thus news use behavior) as _digital traces_ of users engaging and interacting (clicking on news links, liking news posts, writing comments on said posts) with social media posts.
+
+In this session, we will deal with common approaches to collect digital trace data from social media.
+]
+
+--
+
+.pull-right[Our agenda today:
 
 - API requests
   - Basics
-  - Open APIs
-  - Restricted APIs
+  - Calling APIs with R
 - API wrapper packages
   - Basics
   - Example: Querying the Twitter API with `rtweet`
+- Facepager
 - Social listening services
   - CrowdTangle
   - Other commercial options
-- Facepager
+]
 
 ---
 class: middle
@@ -120,17 +129,270 @@ We can now investigate the body - the actual content - of our response object:
 content(seds_resp)
 ```
 
-The first lines tell us that we have successfully requested an `html_document`. We will deal with working with HTML documents in the next session. But you can already see parts of the `body` of the website (not to be confused with the body of the response).
+The first lines tell us that we have successfully requested an `html_document`. We will deal with working with HTML documents in the next session. But you can already see the first level of contents of the HTML file, namely a `<head>` with meta information, the `<body>` containing all the text of the website (not to be confused with the header and the body of the *response*), and various `<script>`s.
 
 ---
 
 # Basics: What's in a URL?
 
+We access resources on the web by providing the corresponding **URL** (Uniform Resource Locator). Let's take a closer look:
+
+<span class="vibrant-1">`https`</span>`://`<span class="vibrant-2">`www.google.de`</span><span class="vibrant-3">`/search`</span><span class="vibrant-4">`?q=seds`</span>
+
+--
+
+- <span class="vibrant-1">Scheme</span>: The scheme specifies the protocol that we are using (HTTPS is a secure version of HTTP)
+- <span class="vibrant-2">Domain</span>: The domain name indicates the web server that is being requested
+- <span class="vibrant-3">Path</span>: The path points to the specific resource on the web server, just like the folder structure on your computer. It can include the file name (e.g., `/path/to/page.html`), but on web pages, this is usually handled on the server side.
+- <span class="vibrant-4">Parameters</span>: Web servers may accept parameters in a `key=value` combination to dynamically provide content for a specific resource. They are separated from the path by a single `?`. Multiple parameters can be linked by `&` (e.g., `?key1=value1&key2=value2`).
+
+In the above example, we are thus requesting the resource at path `/search` with the parameter `q` set to `seds` of the domain `www.google.de` via the HTTPS protocol: [https://www.google.de/search?q=seds](https://www.google.de/search?q=seds)
+
+--
+
+We can add other parameters to change the output: [https://www.google.de/search?q=seds&start=10](https://www.google.de/search?q=seds&start=10)
+
 ---
 
 # Basics: JSON
 
+Web-APIs usually do not return HTML files, but more structured data, most often in the **JSON** (JavaScript Object Notation, pronounced as in ["Jason and The Argonauts"](https://www.ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf)). This open, human-readable and flexible text format is able to represent various (also hierarchical and nested) data structures in attribute-value pairs. We will deal with JSON files soon, but the example from [Wikipedia](https://en.wikipedia.org/wiki/JSON) probably already tells you all the basics you need to know:
+
+```{json}
+{
+  "firstName": "John",
+  "lastName": "Smith",
+  "isAlive": true,
+  "age": 27,
+  "address": {
+    "streetAddress": "21 2nd Street",
+    "city": "New York",
+    "state": "NY",
+    "postalCode": "10021-3100"
+  },
+  "phoneNumbers": [
+    {
+      "type": "home",
+      "number": "212 555-1234"
+    },
+    ...
+```
+
 ---
+
+# APIs
+
+**APIs** (application programming interfaces) are interfaces of software applications to communicate (e.g., share data) with other applications. 
+
+In our context, the term usually references Web APIs, interfaces of web applications/servers using request-response systems. 
+
+--
+
+All Web APIs are different and thus require some engagement with the (hopefully helpful) documentation: 
+- access requirements
+- endpoints and parameters
+- response data structures
+
+--
+
+But all Web APIs are the same:
+- we write an HTTP request to the API URL
+- the API responds by providing the requested data (usually in JSON, XML, or CSV)
+
+---
+
+# APIs: Authentication & Rate limits
+
+Access to APIs is regulated in many different ways, for example:
+
+- Open (can be called without any authentication)
+- Username/password
+- API key (often passed as a URL parameter)
+- OAuth (a protocol for generating user- oder session-specific authentication tokens)
+
+In all but the first case, this requires (often reviewed or even paid) registration.
+
+--
+
+APIs usually manage access by setting **rate limits**, defining how many calls a user can make within a given time period. Exceeding the rate limit may result in:
+
+- Request errors (e.g., 429 Too Many Requests)
+- Request throttling
+- Fees (in commercial APIs)
+
+---
+
+# APIs: Endpoints & Parameters
+
+Most APIs offer several **endpoints** for specific actions. Endpoints are thus a combination of an URL path and an HTTP request method. 
+
+For example, some endpoints of the Twitter API v2, using the base URL `https://api.twitter.com` are:
+
+- `GET /2/tweets`: Get information about tweets
+- `GET /2/users/:id/tweets`: Get tweets of the Twitter user with the id `:id`
+- `POST /2/users/:id/likes`: Like a tweet on behalf of the Twitter user with the id `:id`
+
+--
+
+Calls to endpoints are then usually specified further by providing **parameters**, either as URL parameters or, for example when using the POST method, in the request body.
+
+- For `GET /2/tweets`, we would add a list of tweet IDs to our call by adding the parameter `ids` (e.g, `GET https://api.twitter.com/2/tweets?ids=id1,id2,id3`)
+- For `POST /2/users/:id/likes`, we would add the id of the target tweet in the request body in JSON format (e.g., `{"tweet_id": "id1"}`)
+
+---
+
+# APIs: Social Media
+
+[Programmable Web](https://www.programmableweb.com/) provides an overview of about 25,000 APIs you may want to use.
+
+Common social media APIs are:
+
+- **Twitter API** (https://developer.twitter.com/en/docs/twitter-api)
+  - Access to Twitter tweets, timelines, profiles, etc.
+  - *Will I get access?* Likely, through the [Academic Research track](https://developer.twitter.com/en/solutions/academic-research)
+- **Facebook Graph API** (https://developers.facebook.com/docs/graph-api)
+  - Acces to Facebook posts, comments, profiles, etc.
+  - *Will I get access?* Unlikely (but wait for the rest of the session)
+- **Facebook Ad Library API** (https://www.facebook.com/ads/library/api)
+  - Access to political Facebook ads (content, reach, spendings, etc.) 
+  - *Will I get access?* Very likely
+- **Instagram Graph API** (https://developers.facebook.com/docs/instagram-api)
+  - Access to Instagram posts, profiles, etc.
+  - *Will I get access?* Unlikely (but wait for the rest of the session)
+- **Reddit API** (https://www.reddit.com/dev/api/)
+  - Reddit submissions, comments, etc.
+  - *Will I get access?* Actually haven't tried it (because see next slide)
+  
+---
+
+# The Pushshift API
+
+**Pushshift** is a privately maintained, open Reddit dataset, ingesting Reddit content in real time. For technical details, see the paper [The Pushshift Reddit Dataset](https://arxiv.org/pdf/2001.08435.pdf).
+
+The dataset is accessible, among other pathways, via a public, open API: https://api.pushshift.io, documented at https://github.com/pushshift/api.
+
+Main advantages over the 'real' Reddit API:
+
+- No authentication required
+- Larger response object limits (500 submissions/comments per call)
+- Very forgiving rate limits (200 calls/minute)
+
+Drawbacks:
+
+- Unclear state of development, incomplete documentation
+- Some issues with deleted posts
+- Likely coverage issues
+
+---
+
+# Calling the Pushshift API with R
+
+Let's write our first API call! The base URL of the Pushshift API is https://api.pushshift.io, so we might want to store this for easier retrieval:
+
+```{r}
+ps_base <- "https://api.pushshift.io"
+```
+
+--
+
+As seen in the [documentation](https://github.com/pushshift/api), the API currently offers two endpoints, both for `GET` methods:
+
+- `/reddit/search/comment`: Searching individual comments
+- `/reddit/search/submission`: Searching submissions
+
+Let's store them as well:
+
+```{r}
+ps_comment <- "/reddit/search/comment"
+ps_submission <- "/reddit/search/submission"
+```
+
+---
+
+# Calling the Pushshift API with R
+
+The `GET()` function of `httr` offers several arguments to construct a response from the different parts of the call URL. We can use the `url` argument to add the base URL (domain), define the path using the `path` arguments, and add several parameters by passing a named list of key/value pairs to the argument `query`.
+
+In the following, we call the submission endpoint of the API, searching for the latest 100 submissions in the [r/news](https://www.reddit.com/r/news) subreddit that contain the word `"biden"` in the submission title:
+
+```{r eval=FALSE}
+ps_resp <- GET(url = ps_base,
+               path = ps_submission,
+               query = list(subreddit = "news",
+                            title = "biden",
+                            size = 100)
+               )
+```
+
+```{r echo=FALSE}
+ps_resp <- readRDS("offline_data/1/ps_resp.rds")
+```
+
+---
+
+# Calling the Pushshift API with R
+
+Let's take a look:
+
+```{r}
+ps_resp
+```
+
+---
+
+# Calling the Pushshift API with R
+
+We can 'unpack' the response body by using the `content()` function:
+
+```{r}
+ps_content <- content(ps_resp, type = "application/json")
+str(ps_content, max.level = 1)
+```
+
+--
+
+Further moving through the list levels, we can access information about the individual entries:
+
+```{r}
+ps_data <- ps_content$data
+ps_data[[1]]$title
+```
+
+(Your results may vary as I'm using a cached response in this presentation.)
+
+---
+
+# Calling the Pushshift API with R
+
+Using some [Tidyverse](https://www.tidyverse.org/) functions - specifically, from the `purrr` package for functional programming - we can quickly transform the response to a rectangular dataframe:
+
+```{r}
+library(tidyverse)
+fields <- c("id", "title", "created_utc", "permalink", "url")
+ps_data %>% 
+  map_dfr(magrittr::extract, fields)
+```
+
+---
+
+# Calling the Pushshift API with R
+
+**Now write your own call:** 
+Try to obtain the *first* 50 posts that were posted in German-language subreddit [r/de](https://www.reddit.com/r/de). Consult the documentation for help on the necessary parameters: https://github.com/pushshift/api
+
+--
+
+```{r eval=FALSE}
+ps_resp <- GET(url = ps_base,
+               path = ps_submission,
+               query = list(subreddit = "de",
+                            sort = "asc",
+                            size = 50)
+               )
+```
+
+---
+
 class: middle
 # Thanks
 
