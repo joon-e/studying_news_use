@@ -274,8 +274,8 @@ The dataset is accessible, among other pathways, via a public, open API: https:/
 Main advantages over the 'real' Reddit API:
 
 - No authentication required
-- Larger response object limits (500 submissions/comments per call)
-- Very forgiving rate limits (200 calls/minute)
+- Larger response object limits
+- Very forgiving rate limits
 
 Drawbacks:
 
@@ -377,19 +377,75 @@ ps_data %>%
 
 # Calling the Pushshift API with R
 
-**Now write your own call:** 
+**Exercise 1: Write your own call:** 
 Try to obtain the *first* 50 posts that were posted in German-language subreddit [r/de](https://www.reddit.com/r/de). Consult the documentation for help on the necessary parameters: https://github.com/pushshift/api
 
---
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+# APIs: Iteration & Pagination
+
+If an API call matches more results than can be returned with a single response, we need an iteration mechanism to retrieve all results. For example, if the call matches 500 results and the response object limit is 100, we need to make (at least) 5 calls to retrieve all results. Keep rate limits in mind when iterating over results!
+
+Most APIs provide one or more of the following forms of pagination:
+
+- **Pages**: Results are spread over pages (e.g., results 1 to 100 on page 1, 101 to 200 on page 2). We can then iterate over results by simply adding 1 to the page number (e.g., by adding the query parameter `page=page_num`) in each successive call.
+- **Keys**: Results are ordered by ascending/descending keys (e.g., Tweet IDs). We can then iterate over results by retrieving the minimum/maximum key of each call and requesting results below/above said key in the next call.
+- **Timestamps**: Results are ordered by UNIX timestamps or [DIN ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) date formats. We can then iterate over results by retrieving the minimum/maximum timestamp of each call and requesting results before/after said timestamp in the next call (but beware that multiple results can have the same timestamp).
+- **Cursors**: Results are spread over pages, but single pages are identified by an opaque cursor (i.e., usually a seemingly random sequence of characters) instead of integer numbers. We can then iterate over results by retrieving the cursor for the next/previous page which should be provided in the response.
+
+---
+
+# Calling the Pushshift API with R
+
+**Exercise 2: Pagination:** 
+Try to obtain the *latest* 200 comments posted in the [r/politics](https://www.reddit.com/r/politics) subreddit that contain the phrase "lol". Consult the documentation for help on the necessary parameters: https://github.com/pushshift/api
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+# Exercise solutions
+
+Exercise 1:
 
 ```{r eval=FALSE}
-ps_resp <- GET(url = ps_base,
-               path = ps_submission,
-               query = list(subreddit = "de",
-                            sort = "asc",
-                            size = 50)
-               )
+ex1_resp <- GET(url = ps_base,
+                path = ps_submission,
+                query = list(subreddit = "de",
+                             sort = "asc")
+                )
 ```
+
+---
+
+# Exercise solutions
+
+Exercise 2:
+
+```{r eval=FALSE}
+# Get first 100 comments
+ex2_resp_1 <- GET(url = ps_base,
+                  path = ps_comment, 
+                  query = list(q = "lol",
+                               subreddit = "politics",
+                               size = 100))
+ex2_data_1 <- content(ex2_resp_1)$data
+
+# Extract timestamp of last result
+last_comment_timestamp <- tail(ex2_data_1, 1)[[1]]$created_utc
+
+ex2_resp_2 <- GET(url = ps_base,
+                  path = ps_comment, 
+                  query = list(q = "lol",
+                               subreddit = "politics",
+                               size = 100,
+                               before = last_comment_timestamp))
+
+```
+
+(Note that to make sure we do not miss any comments posted at the same time, we could add +1 to the `last_comment_timestamp` and then filter out eventual duplicates.)
 
 ---
 
