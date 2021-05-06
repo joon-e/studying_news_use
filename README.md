@@ -8,7 +8,7 @@ This repo contains the course materials for the methods module of the [SEDS](htt
 
 Collecting digital trace data from social media via API requests, API wrapper packages, [Facepager](https://github.com/strohne/Facepager), and social listening services.
 
-- Slides: [HTML](1_data_collection_1.html) / [PDF]
+- Slides: [HTML](1_data_collection_1.html) / [PDF](slides/1_data_collection_1.pdf)
 - Readings:
   - Bruns, Axel. 2019. „After the ‘APIcalypse’: Social Media Platforms and Their Fight Against Critical Scholarly Research“. *Information, Communication & Society* 22 (11): 1544–66. [https://doi.org/10.1080/1369118X.2019.1637447](https://doi.org/10.1080/1369118X.2019.1637447).
   - Puschmann, Cornelius. 2019. „An End to the Wild West of Social Media Research: A Response to Axel Bruns“. *Information, Communication & Society* 22 (11): 1582–89. [https://doi.org/10.1080/1369118X.2019.1646300](https://doi.org/10.1080/1369118X.2019.1646300)
