@@ -40,10 +40,12 @@ In this session, we will deal with common approaches to collect digital trace da
 - API wrapper packages
   - Basics
   - Example: Querying the Twitter API with `rtweet`
+  - Twitter's Academic API track
 - Facepager
-- Social listening services
+- Social monitoring services
   - CrowdTangle
   - Other commercial options
+- &lt;span style="color: #bbbbbb"&gt;Grey area tools&lt;/span&gt;
 ]
 
 ---
@@ -479,6 +481,360 @@ Try to obtain the *latest* 200 comments posted in the [r/politics](https://www.r
 &lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
 
 ---
+class: middle
+
+# API wrapper packages
+
+---
+
+# API wrapper packages
+
+**API wrappers** are language-specific packages that simplify calling specific APIs. In addition to providing convenience functions for the actual calls, they sometimes also include pagination and rate limit handling.
+
+--
+
+You will probably find R wrapper packages for most common APIs. If in doubt, just google `"r + API name"`.
+
+--
+
+If there is none, why not do some good and create your own wrapper package? Some resources:
+
+- [CRAN: Best practices for API packages](https://cran.r-project.org/web/packages/httr/vignettes/api-packages.html)
+- [Colin Fay: How to build an API wrapper package in 10 minutes](https://colinfay.me/build-api-wrapper-package-r/)
+
+---
+
+# Example: `rtweet`
+
+[`rtweet`](https://github.com/ropensci/rtweet) is probably the most common Twitter API wrapper package for R (and also somewhat *official*, as it is co-developed by the RStudio team). 
+
+Results follow tidy data conventions and are thus easily processed further; furthemore, the package can be used without access to Twitter's developer API (but you will still need a Twitter account, and a developer account is highly encouraged for large-scale data collection).
+
+Currently, the package is not (yet) optimized for Twitter's API v2 (and thus the academic research track).
+
+
+```r
+install.packages("rtweet")
+```
+
+---
+
+# Example: `rtweet`
+
+Let's download the latest 1000 tweets containing `#impfung`.
+
+
+```r
+library(rtweet)
+vac_tweets &lt;- search_tweets("#impfung", n = 1000, include_rts = FALSE)
+vac_tweets
+```
+
+```
+## # A tibble: 1,000 x 90
+##    user_id   status_id   created_at          screen_name  text           source 
+##    &lt;chr&gt;     &lt;chr&gt;       &lt;dttm&gt;              &lt;chr&gt;        &lt;chr&gt;          &lt;chr&gt;  
+##  1 13518414~ 1390228032~ 2021-05-06 08:52:46 Rudi_4711    "@SZ #Impfung~ Twitte~
+##  2 73765817  1390227820~ 2021-05-06 08:51:56 KarlheinzIl~ "Wollte mich ~ Twitte~
+##  3 12362187~ 1390227682~ 2021-05-06 08:51:23 domiwi194    "Super Immuns~ Twitte~
+##  4 16859954~ 1390227377~ 2021-05-06 08:50:10 black_purpl~ "Als generati~ Twitte~
+##  5 16859954~ 1390020034~ 2021-05-05 19:06:16 black_purpl~ "\"Allerdings~ Twitte~
+##  6 13570926~ 1390227085~ 2021-05-06 08:49:00 lujustsays   "Und im übrig~ Twitte~
+##  7 13570926~ 1389951298~ 2021-05-05 14:33:08 lujustsays   "Vielleicht h~ Twitte~
+##  8 19710089  1390226501~ 2021-05-06 08:46:41 mattimerker  "\U0001f44d&lt;U+2935&gt;&lt;U+FE0F&gt; ~ Twitte~
+##  9 19710089  1389998448~ 2021-05-05 17:40:29 mattimerker  "Das Impftemp~ Twitte~
+## 10 19710089  1390019166~ 2021-05-05 19:02:49 mattimerker  "Impfquote (2~ Twitte~
+## # ... with 990 more rows, and 84 more variables: display_text_width &lt;dbl&gt;,
+## #   reply_to_status_id &lt;chr&gt;, reply_to_user_id &lt;chr&gt;,
+## #   reply_to_screen_name &lt;chr&gt;, is_quote &lt;lgl&gt;, is_retweet &lt;lgl&gt;,
+## #   favorite_count &lt;int&gt;, retweet_count &lt;int&gt;, quote_count &lt;int&gt;,
+## #   reply_count &lt;int&gt;, hashtags &lt;list&gt;, symbols &lt;list&gt;, urls_url &lt;list&gt;,
+## #   urls_t.co &lt;list&gt;, urls_expanded_url &lt;list&gt;, media_url &lt;list&gt;,
+## #   media_t.co &lt;list&gt;, media_expanded_url &lt;list&gt;, media_type &lt;list&gt;,
+## #   ext_media_url &lt;list&gt;, ext_media_t.co &lt;list&gt;, ext_media_expanded_url &lt;list&gt;,
+## #   ext_media_type &lt;chr&gt;, mentions_user_id &lt;list&gt;, mentions_screen_name &lt;list&gt;,
+## #   lang &lt;chr&gt;, quoted_status_id &lt;chr&gt;, quoted_text &lt;chr&gt;,
+## #   quoted_created_at &lt;dttm&gt;, quoted_source &lt;chr&gt;, quoted_favorite_count &lt;int&gt;,
+## #   quoted_retweet_count &lt;int&gt;, quoted_user_id &lt;chr&gt;, quoted_screen_name &lt;chr&gt;,
+## #   quoted_name &lt;chr&gt;, quoted_followers_count &lt;int&gt;,
+## #   quoted_friends_count &lt;int&gt;, quoted_statuses_count &lt;int&gt;,
+## #   quoted_location &lt;chr&gt;, quoted_description &lt;chr&gt;, quoted_verified &lt;lgl&gt;,
+## #   retweet_status_id &lt;chr&gt;, retweet_text &lt;chr&gt;, retweet_created_at &lt;dttm&gt;,
+## #   retweet_source &lt;chr&gt;, retweet_favorite_count &lt;int&gt;,
+## #   retweet_retweet_count &lt;int&gt;, retweet_user_id &lt;chr&gt;,
+## #   retweet_screen_name &lt;chr&gt;, retweet_name &lt;chr&gt;,
+## #   retweet_followers_count &lt;int&gt;, retweet_friends_count &lt;int&gt;,
+## #   retweet_statuses_count &lt;int&gt;, retweet_location &lt;chr&gt;,
+## #   retweet_description &lt;chr&gt;, retweet_verified &lt;lgl&gt;, place_url &lt;chr&gt;,
+## #   place_name &lt;chr&gt;, place_full_name &lt;chr&gt;, place_type &lt;chr&gt;, country &lt;chr&gt;,
+## #   country_code &lt;chr&gt;, geo_coords &lt;list&gt;, coords_coords &lt;list&gt;,
+## #   bbox_coords &lt;list&gt;, status_url &lt;chr&gt;, name &lt;chr&gt;, location &lt;chr&gt;,
+## #   description &lt;chr&gt;, url &lt;chr&gt;, protected &lt;lgl&gt;, followers_count &lt;int&gt;,
+## #   friends_count &lt;int&gt;, listed_count &lt;int&gt;, statuses_count &lt;int&gt;,
+## #   favourites_count &lt;int&gt;, account_created_at &lt;dttm&gt;, verified &lt;lgl&gt;,
+## #   profile_url &lt;chr&gt;, profile_expanded_url &lt;chr&gt;, account_lang &lt;lgl&gt;,
+## #   profile_banner_url &lt;chr&gt;, profile_background_url &lt;chr&gt;,
+## #   profile_image_url &lt;chr&gt;
+```
+
+---
+
+# Example: `rtweet`
+
+**Exercise 3: `rtweet`:** 
+Try to obtain both the latest 500 tweets posted by Annalena Baerbock, Armin Laschet &amp; Olaf Scholz, and the 500 latest tweets favorited by them. Consult the documentation for help on the necessary functions: https://github.com/ropensci/rtweet
+
+&lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
+
+---
+
+# Wrappers for Twitter's Academic API
+
+Twitter's new API v2 offers an [Academic Research track](https://developer.twitter.com/en/solutions/academic-research) free for non-commercial academic research, including master's students. It includes access to the full Twitter archive ('historic data') and offers high rate and tweet limits (up to 10,000,000 tweets per month).
+
+--
+
+As the academic track is still new, there is not one definitive wrapper package (and most are still in active development). Choose your fighter:
+
+- [`academictwitteR`](https://github.com/cjbarrie/academictwitteR)
+- [`RTwitterV2`](https://github.com/MaelKubli/RTwitterV2)
+- [`twitterAcademic`](https://github.com/kasperwelbers/twitterAcademic)
+- [`twitteRacademic`](https://github.com/mittendo/twitteRacademic) (note the different capital letter)
+
+---
+class: middle
+
+# Facepager
+
+---
+
+# Facepager
+
+[Facepager](https://github.com/strohne/Facepager) is a tool for automated data collection (APIs, webscraping) of publicly available data.
+
+.pull-left[
+Main advantages:
+
+- Free and open source
+- Easy to use
+- Good [documentation](https://github.com/strohne/Facepager/wiki) and [tutorial videos](https://www.youtube.com/channel/UCiIbKv5b5rz-6LPTLQgVGug)
+- Several presets for common use cases
+- App-level access to Facebook Graph API
+
+Drawbacks:
+
+- some outdated information the Wiki
+- Potential bottleneck of app-level rate limits
+]
+
+.pull-right[
+![](img/1/facepager.png)
+]
+
+---
+
+# Fetching Facebook data with Facepager
+
+Apart from providing a point-and-click solution to API calls, the main advantage is the app-level access to Facebook's Graph API. Thus, it is possible to obtain data from public Facebook pages (including comments!) without an own Developer API authorization (however, you still need a Facebook account).
+
+There are also presets for the most common tasks (fetching page data, fetching posts from pages, fetching comments from posts).
+
+--
+
+.pull-left[
+
+Getting started - fetching posts and comments:
+
+1. [Download and install Facepager](https://github.com/strohne/Facepager/releases)
+2. Create new local database
+3. Login to Facebook via Facepager
+4. Add Facebook pages as nodes (id or name)
+5. Fetch posts for these pages using preset "2 Get Facebook posts"
+6. Switch node level to `2` and fetch comments using preset "3 Get comments".
+7. Data can be exported as a CSV file for further analysis.
+]
+
+.pull-right[
+
+![](img/1/facepager_fb_login.png)
+]
+
+---
+
+# Fetching Facebook data with Facepager
+
+![](img/1/facepager_downloaded_comments.png)
+
+---
+class: middle
+
+# Social monitoring services
+
+---
+
+# Social monitoring services
+
+Social monitoring services are (commercial) services for, ahem, monitoring social media, for example:
+
+- [Crowdtangle](https://www.crowdtangle.com/)
+- [Synthesio](https://www.synthesio.com/)
+- [BuzzSumo](https://buzzsumo.com/)
+
+--
+
+.pull-left[
+Advantages:
+
+- Easy to use, dashboards
+- App-level API access
+- Monitor multiple social media at once
+
+]
+
+.pull-right[
+Drawbacks:
+
+- Commercial and often costly
+- Not primarily made for research
+- Intransparent (coverage?)
+
+]
+
+---
+
+# CrowdTangle
+
+[Crowdtangle](https://www.crowdtangle.com/) is a social monitoring service owned by Facebook.
+
+.pull-left[
+- Access to both public Facebook &amp; Instagram data (but no comments)
+- Free [academic track](https://help.crowdtangle.com/en/articles/4302208-crowdtangle-for-academics-and-researchers) (but currently only PhD students+ and subject to application)
+- [Own API](https://help.crowdtangle.com/en/articles/1189612-crowdtangle-api) for programmatic access 
+- Time-series data on posts
+- Some preprocessing included (e.g., image text recognition for Instagram posts)
+- Lisa or Julian can provide data ;) 
+]
+
+.pull-right[
+![](img/1/ct_url_tracking.png)
+]
+
+---
+
+# CrowdTangle
+
+.pull-left[
+Example Facebook dashboard:
+
+![](img/1/ct_facebook.png)
+]
+
+.pull-right[
+Example Instagram dashboard
+
+![](img/1/ct_instagram.png)
+]
+
+---
+
+# CrowdTangle
+
+Sample data:
+
+
+```
+## # A tibble: 271 x 40
+##    `Page Name`   `User Name`   `Facebook Id` `Page Category`   `Page Admin Top ~
+##    &lt;chr&gt;         &lt;chr&gt;                 &lt;dbl&gt; &lt;chr&gt;             &lt;chr&gt;            
+##  1 ZEIT ONLINE   zeitonline      37816894428 NEWS_SITE         DE               
+##  2 WELT Nachric~ weltnachrich~   95242447553 BROADCASTING_MED~ DE               
+##  3 ZEIT ONLINE   zeitonline      37816894428 NEWS_SITE         DE               
+##  4 t-online      tonline         24897707939 MEDIA_NEWS_COMPA~ DE               
+##  5 ZEIT ONLINE   zeitonline      37816894428 NEWS_SITE         DE               
+##  6 WELT          welt            97515118114 NEWS_SITE         DE               
+##  7 ntv Nachrich~ ntvNachricht~  126049165307 TV_CHANNEL        DE               
+##  8 DER SPIEGEL   derspiegel      38246844868 NEWS_SITE         DE               
+##  9 FOCUS Online  focus.de        37124189409 NEWS_SITE         DE               
+## 10 Bild          bild            25604775729 NEWS_SITE         DE               
+## # ... with 261 more rows, and 35 more variables: Page Description &lt;chr&gt;,
+## #   Page Created &lt;chr&gt;, Likes at Posting &lt;dbl&gt;, Followers at Posting &lt;dbl&gt;,
+## #   Post Created &lt;chr&gt;, Post Created Date &lt;date&gt;, Post Created Time &lt;time&gt;,
+## #   Type &lt;chr&gt;, Total Interactions &lt;dbl&gt;, Likes &lt;dbl&gt;, Comments &lt;dbl&gt;,
+## #   Shares &lt;dbl&gt;, Love &lt;dbl&gt;, Wow &lt;dbl&gt;, Haha &lt;dbl&gt;, Sad &lt;dbl&gt;, Angry &lt;dbl&gt;,
+## #   Care &lt;dbl&gt;, Video Share Status &lt;chr&gt;, Is Video Owner? &lt;chr&gt;,
+## #   Post Views &lt;dbl&gt;, Total Views &lt;dbl&gt;, Total Views For All Crossposts &lt;dbl&gt;,
+## #   Video Length &lt;chr&gt;, URL &lt;chr&gt;, Message &lt;chr&gt;, Link &lt;chr&gt;, Final Link &lt;chr&gt;,
+## #   Image Text &lt;chr&gt;, Link Text &lt;chr&gt;, Description &lt;chr&gt;, Sponsor Id &lt;lgl&gt;,
+## #   Sponsor Name &lt;lgl&gt;, Sponsor Category &lt;lgl&gt;,
+## #   Overperforming Score (weighted  —  Likes 1x Shares 1x Comments 1x Love 1x Wow 1x Haha 1x Sad 1x Angry 1x Care 1x ) &lt;dbl&gt;
+```
+
+---
+
+# CrowdTangle
+
+Sample post time-series data:
+
+
+```
+## # A tibble: 36 x 35
+##         ID `Score Date (GMT)`  Timestep Likes `Average Likes` Comments
+##      &lt;dbl&gt; &lt;dttm&gt;                 &lt;dbl&gt; &lt;dbl&gt;           &lt;dbl&gt;    &lt;dbl&gt;
+##  1 1.02e16 2021-05-05 14:58:33        1    20               7      115
+##  2 1.02e16 2021-05-05 15:15:54        2    36               7      200
+##  3 1.02e16 2021-05-05 15:32:51        3    48               9      274
+##  4 1.02e16 2021-05-05 15:50:52        4    59               9      346
+##  5 1.02e16 2021-05-05 16:08:39        5    67               9      405
+##  6 1.02e16 2021-05-05 16:25:32        6    79              11      486
+##  7 1.02e16 2021-05-05 17:02:41        7    93              13      611
+##  8 1.02e16 2021-05-05 17:40:12        8   110              14      726
+##  9 1.02e16 2021-05-05 17:57:41        9   117              14      758
+## 10 1.02e16 2021-05-05 18:34:05       10   131              15      839
+## # ... with 26 more rows, and 29 more variables: Average Comments &lt;dbl&gt;,
+## #   Shares &lt;dbl&gt;, Avg Shares &lt;dbl&gt;, Loves &lt;dbl&gt;, Avg Loves &lt;dbl&gt;, Wows &lt;dbl&gt;,
+## #   Avg Wows &lt;dbl&gt;, Hahas &lt;dbl&gt;, Avg Hahas &lt;dbl&gt;, Sads &lt;dbl&gt;, Avg Sads &lt;dbl&gt;,
+## #   Angrys &lt;dbl&gt;, Avg Angrys &lt;dbl&gt;, Cares &lt;dbl&gt;, Avg Cares &lt;dbl&gt;,
+## #   Reactions &lt;dbl&gt;, Avg Reactions &lt;dbl&gt;, Post Views &lt;dbl&gt;,
+## #   Avg Post Views &lt;dbl&gt;, Total Views &lt;dbl&gt;, Avg Total Views &lt;dbl&gt;,
+## #   Total Views for all Crossposts &lt;dbl&gt;,
+## #   Avg Total Views for all Crossposts &lt;dbl&gt;, Views While Live &lt;dbl&gt;,
+## #   Avg Views While Live &lt;dbl&gt;,
+## #   Overperforming(+)/Underperforming(-) Score &lt;chr&gt;, Post Date (GMT) &lt;lgl&gt;,
+## #   2021-05-05 14:40:07 &lt;lgl&gt;,
+## #   https://www.facebook.com/tonline/posts/10159511478997940 &lt;lgl&gt;
+```
+
+---
+class: middle
+
+# Grey area tools
+
+---
+
+# Grey area tools
+
+As Bruns (2019) noted, "break[ing] the rules" (p. 16) is one way to deal with an increasingly restrictive API landscape. For most social media platforms, there are several 'unofficial' tools like [TikTok-API](https://github.com/davidteather/TikTok-Api) or [Instaloader](https://instaloader.github.io/) to access (public) data.
+
+--
+
+These tools often make use of:
+
+- Browser emulation
+- Web scraping
+- Private APIs
+
+--
+
+They are often the only viable way for automated data fetching from these platforms. They are also likely violating the platforms' ToS (but [German law may be on your side](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3491192)) and are subject to cease working at a moment's notice.
+
+Use them if you want or need to, but always have a backup plan available.
+
+---
+class: middle
+
+# Exercise solutions
+
+---
 
 # Exercise solutions
 
@@ -524,6 +880,21 @@ ex2_resp_2 &lt;- GET(url = ps_base,
 
 ---
 
+# Exercise solutions
+
+Exercise 3:
+
+
+```r
+candidates &lt;- c("ABaerbock", "ArminLaschet", "OlafScholz")
+timelines &lt;- get_timelines(candidates, n = 500)
+favs &lt;- get_favorites(candidates, n = 500)
+```
+
+(Note that the `favs` tibble contains one additional variable, indicating `favorited_by`)
+
+---
+
 class: middle
 # Thanks
 
@@ -531,6 +902,7 @@ Credits:
 - Slides created with [`xaringan`](https://github.com/yihui/xaringan)
 - Title image by [Tracy Le Blank / Pexels](https://www.pexels.com/de-de/foto/person-mit-iphone-die-den-ordner-fur-soziale-netzwerke-anzeigt-607812/)
 - Icons by [Bootstrap](https://icons.getbootstrap.com/)
+- Coding cat gif by [Memecandy/Giphy])(https://giphy.com/gifs/memecandy-LmNwrBhejkK9EFP504)
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

@@ -35,10 +35,12 @@ In this session, we will deal with common approaches to collect digital trace da
 - API wrapper packages
   - Basics
   - Example: Querying the Twitter API with `rtweet`
+  - Twitter's Academic API track
 - Facepager
-- Social listening services
+- Social monitoring services
   - CrowdTangle
   - Other commercial options
+- <span style="color: #bbbbbb">Grey area tools</span>
 ]
 
 ---
@@ -405,6 +407,268 @@ Try to obtain the *latest* 200 comments posted in the [r/politics](https://www.r
 <center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
 
 ---
+class: middle
+
+# API wrapper packages
+
+---
+
+# API wrapper packages
+
+**API wrappers** are language-specific packages that simplify calling specific APIs. In addition to providing convenience functions for the actual calls, they sometimes also include pagination and rate limit handling.
+
+--
+
+You will probably find R wrapper packages for most common APIs. If in doubt, just google `"r + API name"`.
+
+--
+
+If there is none, why not do some good and create your own wrapper package? Some resources:
+
+- [CRAN: Best practices for API packages](https://cran.r-project.org/web/packages/httr/vignettes/api-packages.html)
+- [Colin Fay: How to build an API wrapper package in 10 minutes](https://colinfay.me/build-api-wrapper-package-r/)
+
+---
+
+# Example: `rtweet`
+
+[`rtweet`](https://github.com/ropensci/rtweet) is probably the most common Twitter API wrapper package for R (and also somewhat *official*, as it is co-developed by the RStudio team). 
+
+Results follow tidy data conventions and are thus easily processed further; furthemore, the package can be used without access to Twitter's developer API (but you will still need a Twitter account, and a developer account is highly encouraged for large-scale data collection).
+
+Currently, the package is not (yet) optimized for Twitter's API v2 (and thus the academic research track).
+
+```{r eval=FALSE}
+install.packages("rtweet")
+```
+
+---
+
+# Example: `rtweet`
+
+Let's download the latest 1000 tweets containing `#impfung`.
+
+```{r eval=FALSE, message=FALSE}
+library(rtweet)
+vac_tweets <- search_tweets("#impfung", n = 1000, include_rts = FALSE)
+vac_tweets
+```
+```{r echo=FALSE, message=FALSE}
+library(rtweet)
+vac_tweets <- readRDS("offline_data/1/vac_tweets.rds")
+vac_tweets
+```
+
+---
+
+# Example: `rtweet`
+
+**Exercise 3: `rtweet`:** 
+Try to obtain both the latest 500 tweets posted by Annalena Baerbock, Armin Laschet & Olaf Scholz, and the 500 latest tweets favorited by them. Consult the documentation for help on the necessary functions: https://github.com/ropensci/rtweet
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+# Wrappers for Twitter's Academic API
+
+Twitter's new API v2 offers an [Academic Research track](https://developer.twitter.com/en/solutions/academic-research) free for non-commercial academic research, including master's students. It includes access to the full Twitter archive ('historic data') and offers high rate and tweet limits (up to 10,000,000 tweets per month).
+
+--
+
+As the academic track is still new, there is not one definitive wrapper package (and most are still in active development). Choose your fighter:
+
+- [`academictwitteR`](https://github.com/cjbarrie/academictwitteR)
+- [`RTwitterV2`](https://github.com/MaelKubli/RTwitterV2)
+- [`twitterAcademic`](https://github.com/kasperwelbers/twitterAcademic)
+- [`twitteRacademic`](https://github.com/mittendo/twitteRacademic) (note the different capital letter)
+
+---
+class: middle
+
+# Facepager
+
+---
+
+# Facepager
+
+[Facepager](https://github.com/strohne/Facepager) is a tool for automated data collection (APIs, webscraping) of publicly available data.
+
+.pull-left[
+Main advantages:
+
+- Free and open source
+- Easy to use
+- Good [documentation](https://github.com/strohne/Facepager/wiki) and [tutorial videos](https://www.youtube.com/channel/UCiIbKv5b5rz-6LPTLQgVGug)
+- Several presets for common use cases
+- App-level access to Facebook Graph API
+
+Drawbacks:
+
+- some outdated information the Wiki
+- Potential bottleneck of app-level rate limits
+]
+
+.pull-right[
+![](img/1/facepager.png)
+]
+
+---
+
+# Fetching Facebook data with Facepager
+
+Apart from providing a point-and-click solution to API calls, the main advantage is the app-level access to Facebook's Graph API. Thus, it is possible to obtain data from public Facebook pages (including comments!) without an own Developer API authorization (however, you still need a Facebook account).
+
+There are also presets for the most common tasks (fetching page data, fetching posts from pages, fetching comments from posts).
+
+--
+
+.pull-left[
+
+Getting started - fetching posts and comments:
+
+1. [Download and install Facepager](https://github.com/strohne/Facepager/releases)
+2. Create new local database
+3. Login to Facebook via Facepager
+4. Add Facebook pages as nodes (id or name)
+5. Fetch posts for these pages using preset "2 Get Facebook posts"
+6. Switch node level to `2` and fetch comments using preset "3 Get comments".
+7. Data can be exported as a CSV file for further analysis.
+]
+
+.pull-right[
+
+![](img/1/facepager_fb_login.png)
+]
+
+---
+
+# Fetching Facebook data with Facepager
+
+![](img/1/facepager_downloaded_comments.png)
+
+---
+class: middle
+
+# Social monitoring services
+
+---
+
+# Social monitoring services
+
+Social monitoring services are (commercial) services for, ahem, monitoring social media, for example:
+
+- [Crowdtangle](https://www.crowdtangle.com/)
+- [Synthesio](https://www.synthesio.com/)
+- [BuzzSumo](https://buzzsumo.com/)
+
+--
+
+.pull-left[
+Advantages:
+
+- Easy to use, dashboards
+- App-level API access
+- Monitor multiple social media at once
+
+]
+
+.pull-right[
+Drawbacks:
+
+- Commercial and often costly
+- Not primarily made for research
+- Intransparent (coverage?)
+
+]
+
+---
+
+# CrowdTangle
+
+[Crowdtangle](https://www.crowdtangle.com/) is a social monitoring service owned by Facebook.
+
+.pull-left[
+- Access to both public Facebook & Instagram data (but no comments)
+- Free [academic track](https://help.crowdtangle.com/en/articles/4302208-crowdtangle-for-academics-and-researchers) (but currently only PhD students+ and subject to application)
+- [Own API](https://help.crowdtangle.com/en/articles/1189612-crowdtangle-api) for programmatic access 
+- Time-series data on posts
+- Some preprocessing included (e.g., image text recognition for Instagram posts)
+- Lisa or Julian can provide data ;) 
+]
+
+.pull-right[
+![](img/1/ct_url_tracking.png)
+]
+
+---
+
+# CrowdTangle
+
+.pull-left[
+Example Facebook dashboard:
+
+![](img/1/ct_facebook.png)
+]
+
+.pull-right[
+Example Instagram dashboard
+
+![](img/1/ct_instagram.png)
+]
+
+---
+
+# CrowdTangle
+
+Sample data:
+
+```{r echo=FALSE, message=FALSE}
+read_csv("data/ct_fb_posts.csv")
+```
+
+---
+
+# CrowdTangle
+
+Sample post time-series data:
+
+```{r echo=FALSE, message=FALSE}
+read_csv("data/ct_single_post.csv") %>% 
+  arrange(Timestep)
+```
+
+---
+class: middle
+
+# Grey area tools
+
+---
+
+# Grey area tools
+
+As Bruns (2019) noted, "break[ing] the rules" (p. 16) is one way to deal with an increasingly restrictive API landscape. For most social media platforms, there are several 'unofficial' tools like [TikTok-API](https://github.com/davidteather/TikTok-Api) or [Instaloader](https://instaloader.github.io/) to access (public) data.
+
+--
+
+These tools often make use of:
+
+- Browser emulation
+- Web scraping
+- Private APIs
+
+--
+
+They are often the only viable way for automated data fetching from these platforms. They are also likely violating the platforms' ToS (but [German law may be on your side](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3491192)) and are subject to cease working at a moment's notice.
+
+Use them if you want and need to, but always have a backup plan available.
+
+---
+class: middle
+
+# Exercise solutions
+
+---
 
 # Exercise solutions
 
@@ -449,6 +713,20 @@ ex2_resp_2 <- GET(url = ps_base,
 
 ---
 
+# Exercise solutions
+
+Exercise 3:
+
+```{r eval=FALSE}
+candidates <- c("ABaerbock", "ArminLaschet", "OlafScholz")
+timelines <- get_timelines(candidates, n = 500)
+favs <- get_favorites(candidates, n = 500)
+```
+
+(Note that the `favs` tibble contains one additional variable, indicating `favorited_by`)
+
+---
+
 class: middle
 # Thanks
 
@@ -456,3 +734,4 @@ Credits:
 - Slides created with [`xaringan`](https://github.com/yihui/xaringan)
 - Title image by [Tracy Le Blank / Pexels](https://www.pexels.com/de-de/foto/person-mit-iphone-die-den-ordner-fur-soziale-netzwerke-anzeigt-607812/)
 - Icons by [Bootstrap](https://icons.getbootstrap.com/)
+- Coding cat gif by [Memecandy/Giphy])(https://giphy.com/gifs/memecandy-LmNwrBhejkK9EFP504)
