@@ -339,7 +339,7 @@ ps_submission &lt;- "/reddit/search/submission"
 
 # Calling the Pushshift API with R
 
-The `GET()` function of `httr` offers several arguments to construct a response from the different parts of the call URL. We can use the `url` argument to add the base URL (domain), define the path using the `path` arguments, and add several parameters by passing a named list of key/value pairs to the argument `query`.
+The `GET()` function of `httr` offers several arguments to construct a request from the different parts of the call URL. We can use the `url` argument to add the base URL (domain), define the path using the `path` arguments, and add several parameters by passing a named list of key/value pairs to the argument `query`.
 
 In the following, we call the submission endpoint of the API, searching for the latest 100 submissions in the [r/news](https://www.reddit.com/r/news) subreddit that contain the word `"biden"` in the submission title:
 
@@ -838,14 +838,15 @@ class: middle
 
 # Exercise solutions
 
-Exercise 1:
+**Exercise 1**:
 
 
 ```r
 ex1_resp &lt;- GET(url = ps_base,
                 path = ps_submission,
                 query = list(subreddit = "de",
-                             sort = "asc")
+                             sort = "asc",
+                             size = 50)
                 )
 ```
 
@@ -853,7 +854,7 @@ ex1_resp &lt;- GET(url = ps_base,
 
 # Exercise solutions
 
-Exercise 2:
+**Exercise 2**:
 
 
 ```r
@@ -882,7 +883,7 @@ ex2_resp_2 &lt;- GET(url = ps_base,
 
 # Exercise solutions
 
-Exercise 3:
+**Exercise 3**:
 
 
 ```r
