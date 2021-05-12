@@ -44,7 +44,7 @@ a:hover {
 .remark-slide-content {
     background-image: url('logo.svg');
     background-repeat: no-repeat;
-    background-position: 98% 2%;
+    background-position: 98% 20px;
     background-size: 200px;
 }
 
@@ -123,6 +123,13 @@ a:hover {
 .social_media {
     background-image: url('logo.svg'), url('../img/1/social_media.jpg');
     background-repeat: no-repeat, no-repeat;
-    background-position: 98% 2%, 100% 50%;
+    background-position: 98% 20px, 100% 50%;
+    background-size: 200px, 55%;    
+}
+
+.newspapers {
+    background-image: url('logo.svg'), url('../img/2/newspapers.jpg');
+    background-repeat: no-repeat, no-repeat;
+    background-position: 98% 20px, 100% 50%;
     background-size: 200px, 55%;    
 }
