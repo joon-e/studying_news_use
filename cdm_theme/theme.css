@@ -33,7 +33,7 @@
 
 /* General styles */
 
-a {
+a, a > code {
     color: #59c7eb;
 }
 
