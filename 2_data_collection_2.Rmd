@@ -1,0 +1,821 @@
+---
+title: "Studying News Use with Computational Methods"
+subtitle: "Data Collection in R, Part II: Collecting News Articles"
+author: "Julian Unkel"
+institute: "University of Konstanz"
+date: "2021/05/17"
+output:
+  xaringan::moon_reader:
+    css: [default, "cdm_theme/theme.css", "cdm_theme/theme_fonts.css"]
+    lib_dir: libs
+    nature:
+      ratio: "16:9"
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      titleSlideClass: ["left", "bottom", "title-slide", "newspapers"]
+---
+
+# Agenda
+
+.pull-left[The widespread availability of machine-readable news texts is one of the main reasons for the proliferation and advancement of automated content analysis methods in the field of Communication.
+
+Digitally stored news texts (e.g., on online news sites or in large text databases) have made it simpler than ever to acquire large corpora of texts in comparatively little time.
+
+In this session, we will deal with common approaches to collect news articles.
+]
+
+--
+
+.pull-right[Our agenda today:
+
+- Web scraping
+  - Basics
+  - Scraping with `rvest`
+  - Good practices
+- News APIs
+  - Basics
+  - MediaCloud
+- News databases
+  - Basics
+  - Parsing text files
+  - Example: NexisUni with `LexisNexisTools`
+]
+
+---
+class: middle
+
+# Web scraping
+
+---
+
+# HTML
+
+Websites are mainly written in _HTML_ (*H*yper*t*ext *M*arkup *L*anguage), marking up plain text into (nested) HTML elements:
+
+```html
+<html>
+  <body>
+    <div class="main">
+      <h1>A level-1 headline</h1>
+      <p>A paragraph</p>
+      <p>Another paragraph with <strong>bold</strong> and <a href="link.html">linked</a> text.</p>
+    </div>
+  </body>
+</html>
+
+```
+--
+
+HTML _elements_ consist of up to three parts:
+
+- a _tag_, defining the element by opening it with `<tagname>` and closing it with `</tagname>`. See [here](https://www.w3schools.com/tags/ref_byfunc.asp) for a comprehensive list of all tags.
+- optional _attributes_ defined in the opening tag by `key = "value"` pairs
+- the plain _text_ of the element _Text_
+
+
+---
+
+# HTML tags
+
+| Tag                 | Description                                                         |
+|---------------------|---------------------------------------------------------------------|
+|       `<head>`      | site head with meta information (title, language, encoding, etc.)   |
+|       `<body>`      | body (actual content of the site)                                   |
+|        `<p>`        | paragraph                                                           |
+|        `<a>`        | link ("anchor"); link target given by attribute `href`              |
+|  `<strong>` / `<b>` | bold                                                                |
+|    `<em>` / `<i>`   | emphasis, italics                                                   |
+| `<h1>`, `<h2>` etc. | headline of level 1, level 2, etc.                                  |
+|      `<table>`      | table                                                               |
+|     `<ol>`, `<ul>`  | ordered list, unordered list                                        |
+|        `<li>`       | list entry                                                          |
+|       `<div>`       | container (formating parts of the website)                          |
+|       `<span>`      | inline container (formating single text passages)                   |
+|       `<img>`       | image; image file defined by attribute `src`                        |
+
+---
+
+# CSS
+
+Styling of HTML elements is usually handled by one or more stylesheet files in *CSS* (*C*ascading *S*tyle*s*heets). Stylesheets define rules for specific HTML tags, classes (multiple HTML elements on the same page may have the same class) or IDs (unique IDs per element and page):
+
+```css
+/* A class */
+.blueOnRed {
+  color: "blue";
+  background-color: "red";
+}
+
+/* An ID */
+#article_hl {
+  font-family: sans-serif;
+}
+
+/* Tag-specifc styling */
+h1 {
+  font-size: 2em;
+}
+```
+
+Classes and IDs can be applied as element attributes in HTML: `<h1 class="blueOnRed" id="article-hl"> `.
+
+---
+
+# Web scraping
+
+Web scraping (for our purposes) consists of the following steps:
+
+- Requesting an HTML file from a web server
+- Selecting the HTML elements of interest, most commonly by their tag names, classes, IDs, nesting/hierarchical placement, or any combination thereof
+- Extracting the relevant information, for example the element's text or specific attributes (e.g., the `href` attribute of `<a>` link elements)
+
+--
+
+Two useful helpers for element identification/selection:
+
+- Your browser's "inspect" feature (right-click any part of a website and select "inspect")
+- The [SelectorGadget](https://rvest.tidyverse.org/articles/selectorgadget.html) bookmarklet
+
+---
+
+# Web scraping with `rvest`
+
+While we could just use `HTTR::GET()` and base text parsing functions for web scraping, the package `rvest` simplifies the whole process:
+
+```{r, eval=FALSE}
+install.packages("rvest")
+```
+
+```{r message=FALSE, warning=FALSE}
+library(rvest)
+```
+
+--
+
+The main functions are:
+
+- Request the HTML file with `read_html()`
+- Select elements with `html_nodes()`
+- Extract relevant information with `html_text()` (plain text), `html_attr()` (element attributes) and/or `html_table()` (convenience function for tables)
+
+---
+
+# Web scraping with `rvest`
+
+Let's scrape some information from [Wikipedia's Lake Constance article](https://en.wikipedia.org/wiki/Lake_Constance). First, read the HTML file:
+
+```{r eval=FALSE}
+wiki_html <- read_html("https://en.wikipedia.org/wiki/Lake_Constance")
+```
+
+```{r echo=FALSE}
+wiki_html <- read_html("offline_data/2/wiki.html")
+```
+
+--
+
+Extract the level 1 headline:
+
+```{r}
+wiki_html %>% 
+  html_elements("h1") %>% 
+  html_text()
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract all lower-level headlines:
+
+```{r}
+wiki_html %>% 
+  html_elements(".mw-headline") %>% # All elements of class "mw-headline" (note the . indicating a class)
+  html_text()
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract article text without headlines as single paragraphs:
+
+```{r}
+wiki_html %>% 
+  html_elements("#bodyContent") %>%
+  html_elements("p") %>% 
+  html_text(trim = TRUE) # Trim leading and trailing whitespace
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract article link targets in the article text:
+
+```{r}
+wiki_html %>% 
+  html_elements("#bodyContent p > a") %>% 
+  html_attr("href")
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract "ten largest tributaries" table by [Xpath](https://en.wikipedia.org/wiki/XPath):
+
+```{r message=FALSE}
+wiki_html %>% 
+  html_elements(xpath = '//*[@id="mw-content-text"]/div[1]/table[2]') %>% 
+  html_table()
+```
+
+---
+
+# Web scraping with `rvest`
+
+**Exercise 1: Web scraping:** 
+Try to obtain the headline, publication date, and article text (excluding lead and lower-level headlines) of the following Spiegel Online article: [Failed Football Deal: Investors Wanted to Make €6.1 Billion with Super League](https://www.spiegel.de/international/europe/investors-wanted-to-make-eur6-1-billion-with-super-league-a-11a7128b-222c-4db3-b17a-d7e234fb8d5c)
+
+Bonus points: write a function that works with every SpOn article formatted in the same way.
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+# Good practices
+
+As already discussed last time, systematic web scraping can run into some legal grey areas. Common good web scraping practices thus include:
+
+- Respect site owner's terms: professional websites usually define a robots exclusion protocol in a file called `robots.txt` in the root of the web server that defines what may be scraped automatically and what not
+- Scrape sparingly: Only extract and store the information you need, do not overload servers with thousands of requests per minute
+- Introduce yourself: Define a point of contact in the user-agent string of your bot
+
+--
+
+The package `polite` simplifies the above practices by automatically reading out the `robots.txt` and adhering to the standards defined within. Main functions:
+
+- `bow()` to a web server, introduce yourself and read out `robots.txt`
+- `nod()` to update the current path on the same server (no need to bow multiple times to the same server)
+- `scrape()` to actually scrape the current path (and optionally pass parameters to the current path)
+
+---
+
+# Scraping with `polite`
+
+Let's give this a try:
+
+```{r}
+library(polite)
+wiki_session <- bow("https://en.wikipedia.org/") # Include a custom user agent string with the argument user_agent
+wiki_session
+```
+
+Look's like we are allowed to scrape here.
+
+---
+
+# Scraping with `polite`
+
+Update path to specific article and scrape the article:
+
+```{r}
+article <- nod(wiki_session, "wiki/Korean_fried_chicken") %>% 
+  scrape()
+```
+
+--
+
+We can now use `rvest` functions to extract elements:
+
+```{r}
+article %>% 
+  html_elements("h1") %>% 
+  html_text()
+```
+
+---
+
+# Scraping with `polite` and `rvest`
+
+**Exercise 2: Scraping multiple articles** 
+
+1. Using `polite` functions, create a session for the international portal of [Spiegel Online](https://www.spiegel.de/international/): https://www.spiegel.de/international/ 
+2. Get the links/paths to the three most recent articles
+3. Using the `polite` principles, scrape the headline, date and article text of those three articles
+
+Bonus points: update the function from Exercise 1 to follow those principles.
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+class: middle
+
+# News APIs
+
+---
+
+# News APIs
+
+Several news outlets provide their own content APIs, including:
+
+- [The Guardian](https://open-platform.theguardian.com/) 
+- [New York Times](https://developer.nytimes.com/)
+
+--
+
+There are also overarching APIs dedicating to searching news stories, for example:
+
+- [MediaCloud](https://mediacloud.org/)
+- [News API](https://newsapi.org/)
+
+The same principles of last week's session apply.
+
+---
+
+# Digression: Storing API keys
+
+When working on your projects, you will probably receive more and more API keys. It is good practice to store those as environment variables in a global- or project-level `.Renviron` file.
+
+--
+
+Set new variables by `Sys.setenv()`:
+
+```{r eval=FALSE}
+Sys.setenv(TEST_API_KEY = "abc123456789")
+```
+
+--
+
+Then retrieve the values with `Sys.getenv()`:
+
+```{r}
+Sys.getenv("TEST_API_KEY")
+```
+
+This also means you can share code without accidentally exposing your secret API keys to the public. 
+
+---
+
+# MediaCloud
+
+[MediaCloud](https://mediacloud.org/) is an open-source platform for media analysis, monitoring media sources in 100+ countries, with news stories scraped almost in real time.
+
+The MediaCloud API (https://api.mediacloud.org/) is documented at https://github.com/mediacloud/backend/blob/master/doc/api_2_0_spec/api_2_0_spec.md. Rate limits are "1,000 API calls and 20,000 stories returned in any 7 day period".
+
+--
+
+The API offers lots of different endpoints. Some important endpoints for collecting news texts are:
+
+- `api/v2/media/list/`: Search for news outlets by name, tag, etc.
+- `api/v2/stories_public/list`: Search for news stories
+- `api/v2/stories_public/word_matrix`: Retrieve word matrices for news stories
+
+---
+
+# Using the MediaCloud API
+
+Let's try to obtain some Spiegel Online stories. We first need to now SpOn's MediaCloud id, so we may want so search the `api/v2/media/list/` endpoint. For all API calls, we authenticate by passing our API key to the parameter `key`.
+
+```{r eval=FALSE}
+library(httr)
+mc_base_url <- "https://api.mediacloud.org/"
+media_endpoint <- "api/v2/media/list"
+
+res <- GET(mc_base_url,
+           path = media_endpoint,
+           query = list(
+             name = "spiegel",
+             key = Sys.getenv("MEDIACLOUD_API_KEY")
+           ))
+```
+
+```{r echo=FALSE}
+library(httr)
+mc_base_url <- "https://api.mediacloud.org/"
+res <- readRDS("offline_data/2/mc_media.rds")
+```
+
+---
+
+# Using the MediaCloud API
+
+Unpack the response:
+
+```{r}
+res %>% 
+  content() %>% 
+  purrr::map_dfr(magrittr::extract, c("media_id", "name", "url"))
+```
+Look's like Spiegel's `media_id` is `19831`.
+
+---
+
+# Using the MediaCloud API
+
+Now we call the `api/v2/stories_public/list` endpoint for recent stories. Instead of through individual call parameters, media stories can be searched by passing a search string to the `q` parameter. Find more information here: https://mediacloud.org/support/query-guide/
+
+--
+
+For example, the query string `"media_id:19831+AND+text:medienstaatsvertrag` searches for all Spiegel stories containing the word "Medienstaatsvertrag".  However, `httr`'s URL parser reformats certain characters (e.g., `:`, `+`):
+
+```{r}
+stories_endpoint <- "api/v2/stories_public/list"
+params = list(q = "media_id:19831+AND+text:medienstaatsvertrag",
+              rows = 100)
+
+stories_url <- parse_url(mc_base_url)
+stories_url$path <- stories_endpoint
+stories_url$query <- params
+stories_url <- build_url(stories_url)
+stories_url
+```
+
+---
+
+# Using the MediaCloud API
+
+We can just replace those characters again:
+
+```{r}
+stories_url <- stringr::str_replace_all(stories_url, c("%3A" = ":", "%2B" = "+"))
+stories_url
+```
+
+--
+
+And are ready to call again:
+
+```{r eval=FALSE}
+stories_url <- paste(stories_url, "&key=", Sys.getenv("MEDIACLOUD_API_KEY"), sep = "")
+res <- GET(stories_url)
+```
+
+```{r echo=FALSE}
+res <- readRDS("offline_data/2/mc_stories.rds")
+```
+
+---
+
+# Using the MediaCloud API
+
+And unpack again:
+
+```{r}
+res %>% 
+  content() %>% 
+  purrr::map_dfr(magrittr::extract, c("stories_id", "publish_date", "title", "url"))
+```
+
+---
+
+# Using the MediaCloud API
+
+Finally, let's obtain the word matrices for these stories:
+
+```{r eval=FALSE}
+wm_endpoint <- "api/v2/stories_public/word_matrix"
+params = list(q = "media_id:19831+AND+text:medienstaatsvertrag",
+              key = Sys.getenv("MEDIACLOUD_API_KEY"))
+
+wm_url <- parse_url(mc_base_url)
+wm_url$path <- wm_endpoint
+wm_url$query <- params
+wm_url <- build_url(wm_url) %>% 
+  stringr::str_replace_all(c("%3A" = ":", "%2B" = "+"))
+```
+
+---
+
+# Using the MediaCloud API
+
+And call:
+
+```{r eval=FALSE}
+res <- GET(wm_url)
+```
+
+```{r echo=FALSE}
+res <- readRDS("offline_data/2/mc_wm.rds")
+```
+
+--
+
+The result contains to lists, `word_list` and `word_matrix`:
+
+```{r}
+wm <- content(res)
+str(wm, max.level = 1)
+```
+
+From the MediaCloud API documentation:
+
+- The word_matrix is a dictionary with the stories_id as the key and the word count dictionary of as the value. For each word count dictionary, the key is the word index of the word in the word_list and the value is the count of the word in that story.
+- The word list is a list of lists. The overall list includes the stems in the order that is referenced by the word index in the word_matrix word count dictionary for each story. Each individual list member includes the stem counted and the most common full word used with that stem in the set.
+
+---
+
+# Using the MediaCloud API
+
+Unpacking depends on how you prefer how to handle nested lists. To get to a document-feature matrix in [https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html](Tidytext) style, we may first separate both lists:
+
+```{r}
+word_list <- wm$word_list
+word_matrix <- wm$word_matrix
+```
+
+--
+
+Applying some [rectangling](https://tidyr.tidyverse.org/articles/rectangle.html) functions, we can create a tibble with the word list:
+
+```{r}
+word_list <- word_list %>% 
+    tibble::enframe(name = "word_counts_id", value = "word_forms") %>% 
+    tidyr::hoist(word_forms, stem = 1, full = 2) %>% 
+    dplyr::mutate(word_counts_id = word_counts_id - 1) # Because R starts to count at index 1
+```
+
+---
+
+# Using the MediaCloud API
+
+For each word contained in our stories, this gives us an ID, the word stem, and the most common full word associated with this stem: 
+
+```{r}
+word_list
+```
+
+---
+
+# Using the MediaCloud API
+
+We rectangle the word matrix:
+
+```{r}
+word_matrix <- word_matrix %>% 
+    tibble::enframe(name = "stories_id", value = "word_counts") %>% 
+    tidyr::unnest_longer(word_counts) %>% 
+    dplyr::mutate(word_counts_id = as.integer(word_counts_id))
+
+word_matrix
+```
+
+---
+
+# Using the MediaCloud API
+
+And finally join both tibbles:
+
+```{r}
+tidy_matrix <- word_matrix %>% 
+    dplyr::left_join(word_list)
+tidy_matrix
+```
+
+---
+
+# Using the MediaCloud API
+
+Let's compare that to [one of the original stories](https://www.spiegel.de/netzwelt/netzpolitik/medienstaatsvertrag-fuer-youtube-und-co-die-geplanten-aenderungen-a-1292530.html#ref=rss):
+
+```{r}
+dplyr::filter(tidy_matrix, stories_id == 1427334496)
+```
+---
+
+class: middle
+
+# News databases
+
+---
+
+# News databases
+
+(Commercial) News databases aggregate content from a variety of news sources. The most relevant for news are:
+
+- [LexisNexis](https://www.lexisnexis.de/loesungen/research/akademische-recherche-nexis-uni): You should be able to access *NexisUni* through the [university library](https://rzblx10.uni-regensburg.de/dbinfo/detail.php?bib_id=ubko&colors=&ocolors=&lett=fs&tid=0&titel_id=1670)
+- [Dow Jones Factiva](https://professional.dowjones.com/factiva/): Faculty access through [Pollux FID](https://www.pollux-fid.de/)
+
+They provide the probably easiest way to obtain full texts from varios news sources. However, text output formats are usually unstructured and thus require additional parsing. Furthmore, batch download can be a bit cumbersome (manual selection of texts, limited number of texts per download).
+
+---
+
+# Parsing text in R
+
+Extracting text from a website just like we did before is a special case of parsing any kind of text into a structured format. However, regular text documents often do not provide anchors, tags or other structured elements we can use to extract the text we want and are thus often more complicated to parse. Some helpers:
+
+- The [`textreadr`](https://cran.r-project.org/web/packages/textreadr/) package provides functions to load many different text formats into R, including several proprietary formats (e.g., `.docx`)
+- The [`stringr`](https://stringr.tidyverse.org/) package provides tidyverse-style functions for parsing and manipulating text data, for example pattern detection, matching and extraction.
+
+--
+
+When parsing text files, at some point you probably need a way to formally express how to search for specific patterns. That's what Regex (*reg*ular *ex*pressions) are for. Some good ressources:
+
+- Learn, build, and test regex on [RegExr](https://regexr.com/)
+- Verbalize Regex with [RVerbalExpressions](https://github.com/VerbalExpressions/RVerbalExpressions)
+- Go full nerd with [regex crosswords](https://regexcrossword.com/)
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+Thankfully, parser package exist for several databases. Let's import some text from NexisUni with [`LexisNexisTools`](https://github.com/JBGruber/LexisNexisTools).
+
+```{r eval=FALSE}
+install.packages("LexisNexisTools")
+```
+
+--
+
+The easiest way to import multiple texts at once is to use the bulk download as single file (`.docx`) function on NexisUni. We can then import all texts at once using `lnt_read()`
+
+```{r eval=FALSE}
+library(LexisNexisTools)
+texts <- lnt_read("nexis_files.docx")
+```
+
+```{r echo=FALSE}
+library(LexisNexisTools)
+texts <- lnt_read("temp/nexis/nexis_files.docx")
+```
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+The result contains three dataframes, 1) meta information:
+
+```{r}
+texts@meta
+```
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+The result contains three dataframes, 2) all articles:
+
+```{r}
+texts@articles
+```
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+The result contains three dataframes, 3) all paragraphs of the articles separately:
+
+```{r}
+texts@paragraphs
+```
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+**Exercise 3: NexisUni** 
+
+Download German-language news articles about "Dogecoin" published during the last 7 days.
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+class: middle
+
+# Exercise solutions
+
+---
+
+# Exercise solutions
+
+Exercise 1:
+
+```{r}
+scrape_spon <- function(url) {
+  # Read URL
+  article <- read_html(url)
+  
+  # Extract headline(s)
+  hl <- article %>% 
+    html_elements("h2") %>% 
+    html_text(trim = TRUE)
+
+  # Extract publication date
+  date <- article %>% 
+    html_elements("time") %>% 
+    html_text()
+
+  # Extract article body
+  body <- article %>% 
+    html_elements(".word-wrap p") %>% 
+    html_text()
+
+  return(list(headline = hl, date = date, body = body))
+}
+```
+
+---
+
+# Exercise solutions
+
+**Exercise 1**:
+
+Apply our new function:
+
+```{r eval=FALSE}
+article_url <- "https://www.spiegel.de/international/europe/investors-wanted-to-make-eur6-1-billion-with-super-league-a-11a7128b-222c-4db3-b17a-d7e234fb8d5c"
+res <- scrape_spon(article_url)
+```
+
+---
+
+# Exercise solutions
+
+**Exercise 2**:
+
+First, let's introduce to the SpOn server:
+
+```{r}
+spon_session <- bow("https://www.spiegel.de/international/")
+```
+
+--
+
+Next, get the contents of the international portal homepage:
+
+```{r}
+homepage <- spon_session %>% 
+  scrape()
+```
+
+--
+
+Then, extract the first three links (or all article links and select only the first three):
+
+```{r}
+article_links <- homepage %>% 
+  html_elements("article h2 a") %>% 
+  html_attr("href")
+
+first_three <- article_links[1:3]
+```
+
+---
+
+# Exercise solutions
+
+Let's update the function:
+
+```{r}
+scrape_spon_new <- function(path, session) {
+  # Update path 
+  article <- nod(session, path) %>% 
+    scrape()
+  
+  hl <- article %>% 
+    html_elements("h2") %>% 
+    html_text(trim = TRUE)
+
+  date <- article %>% 
+    html_elements("time") %>% 
+    html_text()
+
+  body <- article %>% 
+    html_elements(".word-wrap p") %>% 
+    html_text() %>% 
+    stringr::str_c(collapse = "\n") # Collapse article content to one string
+  
+  return(list(headline = hl, date = date, body = body))
+}
+```
+
+---
+
+# Exercise solutions
+
+We can now iterate over the article links, for example using `purrr`'s `map_dfr()` function to automatically generate a tibble with all article information:
+
+```{r}
+purrr::map_dfr(first_three, scrape_spon_new, spon_session)
+```
+
+---
+
+# Exercise solutions
+
+**Exercise 3**:
+
+On NexisUni, search for "Dogecoin" in news and set filters to Language = German and Timespan = Last 7 Days. Download in bulk and import with `lnt_read()` - done!
+
+---
+
+class: middle
+# Thanks
+
+Credits:
+- Slides created with [`xaringan`](https://github.com/yihui/xaringan)
+- Title image by [Digital Buggu / Pexels](https://www.pexels.com/de-de/foto/fotografie-mit-flachem-fokus-von-zeitschriften-167538/)
+- Coding cat gif by [Memecandy/Giphy](https://giphy.com/gifs/memecandy-LmNwrBhejkK9EFP504)

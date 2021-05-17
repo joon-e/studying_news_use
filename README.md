@@ -15,7 +15,7 @@ Collecting digital trace data from social media via API requests, API wrapper pa
 
 ### Data Collection in R, Part II: Collecting News Articles (2021-05-17)
 
-- Slides: [HTML] / [PDF]
+- Slides: [HTML](2_data_collection_2.html) / [PDF](slides/2_data_collection_2.pdf)
 - Readings:
   - Grimmer, Justin, and Brandon M. Stewart. 2013. „Text as Data: The Promise and Pitfalls of Automatic Content Analysis Methods for Political Texts“. *Political Analysis 21* (3): 267–97. [https://doi.org/10.1093/pan/mps028](https://doi.org/10.1093/pan/mps028).
 

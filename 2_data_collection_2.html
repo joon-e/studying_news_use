@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Studying News Use with Computational Methods</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Julian Unkel" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link rel="stylesheet" href="cdm_theme/theme.css" type="text/css" />
+    <link rel="stylesheet" href="cdm_theme/theme_fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: left, bottom, title-slide, newspapers, title-slide
+
+# Studying News Use with Computational Methods
+## Data Collection in R, Part II: Collecting News Articles
+### Julian Unkel
+### University of Konstanz
+### 2021/05/17
+
+---
+
+
+# Agenda
+
+.pull-left[The widespread availability of machine-readable news texts is one of the main reasons for the proliferation and advancement of automated content analysis methods in the field of Communication.
+
+Digitally stored news texts (e.g., on online news sites or in large text databases) have made it simpler than ever to acquire large corpora of texts in comparatively little time.
+
+In this session, we will deal with common approaches to collect news articles.
+]
+
+--
+
+.pull-right[Our agenda today:
+
+- Web scraping
+  - Basics
+  - Scraping with `rvest`
+  - Good practices
+- News APIs
+  - Basics
+  - MediaCloud
+- News databases
+  - Basics
+  - Parsing text files
+  - Example: NexisUni with `LexisNexisTools`
+]
+
+---
+class: middle
+
+# Web scraping
+
+---
+
+# HTML
+
+Websites are mainly written in _HTML_ (*H*yper*t*ext *M*arkup *L*anguage), marking up plain text into (nested) HTML elements:
+
+```html
+&lt;html&gt;
+  &lt;body&gt;
+    &lt;div class="main"&gt;
+      &lt;h1&gt;A level-1 headline&lt;/h1&gt;
+      &lt;p&gt;A paragraph&lt;/p&gt;
+      &lt;p&gt;Another paragraph with &lt;strong&gt;bold&lt;/strong&gt; and &lt;a href="link.html"&gt;linked&lt;/a&gt; text.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+
+```
+--
+
+HTML _elements_ consist of up to three parts:
+
+- a _tag_, defining the element by opening it with `&lt;tagname&gt;` and closing it with `&lt;/tagname&gt;`. See [here](https://www.w3schools.com/tags/ref_byfunc.asp) for a comprehensive list of all tags.
+- optional _attributes_ defined in the opening tag by `key = "value"` pairs
+- the plain _text_ of the element _Text_
+
+
+---
+
+# HTML tags
+
+| Tag                 | Description                                                         |
+|---------------------|---------------------------------------------------------------------|
+|       `&lt;head&gt;`      | site head with meta information (title, language, encoding, etc.)   |
+|       `&lt;body&gt;`      | body (actual content of the site)                                   |
+|        `&lt;p&gt;`        | paragraph                                                           |
+|        `&lt;a&gt;`        | link ("anchor"); link target given by attribute `href`              |
+|  `&lt;strong&gt;` / `&lt;b&gt;` | bold                                                                |
+|    `&lt;em&gt;` / `&lt;i&gt;`   | emphasis, italics                                                   |
+| `&lt;h1&gt;`, `&lt;h2&gt;` etc. | headline of level 1, level 2, etc.                                  |
+|      `&lt;table&gt;`      | table                                                               |
+|     `&lt;ol&gt;`, `&lt;ul&gt;`  | ordered list, unordered list                                        |
+|        `&lt;li&gt;`       | list entry                                                          |
+|       `&lt;div&gt;`       | container (formating parts of the website)                          |
+|       `&lt;span&gt;`      | inline container (formating single text passages)                   |
+|       `&lt;img&gt;`       | image; image file defined by attribute `src`                        |
+
+---
+
+# CSS
+
+Styling of HTML elements is usually handled by one or more stylesheet files in *CSS* (*C*ascading *S*tyle*s*heets). Stylesheets define rules for specific HTML tags, classes (multiple HTML elements on the same page may have the same class) or IDs (unique IDs per element and page):
+
+```css
+/* A class */
+.blueOnRed {
+  color: "blue";
+  background-color: "red";
+}
+
+/* An ID */
+#article_hl {
+  font-family: sans-serif;
+}
+
+/* Tag-specifc styling */
+h1 {
+  font-size: 2em;
+}
+```
+
+Classes and IDs can be applied as element attributes in HTML: `&lt;h1 class="blueOnRed" id="article-hl"&gt; `.
+
+---
+
+# Web scraping
+
+Web scraping (for our purposes) consists of the following steps:
+
+- Requesting an HTML file from a web server
+- Selecting the HTML elements of interest, most commonly by their tag names, classes, IDs, nesting/hierarchical placement, or any combination thereof
+- Extracting the relevant information, for example the element's text or specific attributes (e.g., the `href` attribute of `&lt;a&gt;` link elements)
+
+--
+
+Two useful helpers for element identification/selection:
+
+- Your browser's "inspect" feature (right-click any part of a website and select "inspect")
+- The [SelectorGadget](https://rvest.tidyverse.org/articles/selectorgadget.html) bookmarklet
+
+---
+
+# Web scraping with `rvest`
+
+While we could just use `HTTR::GET()` and base text parsing functions for web scraping, the package `rvest` simplifies the whole process:
+
+
+```r
+install.packages("rvest")
+```
+
+
+```r
+library(rvest)
+```
+
+--
+
+The main functions are:
+
+- Request the HTML file with `read_html()`
+- Select elements with `html_nodes()`
+- Extract relevant information with `html_text()` (plain text), `html_attr()` (element attributes) and/or `html_table()` (convenience function for tables)
+
+---
+
+# Web scraping with `rvest`
+
+Let's scrape some information from [Wikipedia's Lake Constance article](https://en.wikipedia.org/wiki/Lake_Constance). First, read the HTML file:
+
+
+```r
+wiki_html &lt;- read_html("https://en.wikipedia.org/wiki/Lake_Constance")
+```
+
+
+
+--
+
+Extract the level 1 headline:
+
+
+```r
+wiki_html %&gt;% 
+  html_elements("h1") %&gt;% 
+  html_text()
+```
+
+```
+## [1] "Lake Constance"
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract all lower-level headlines:
+
+
+```r
+wiki_html %&gt;% 
+  html_elements(".mw-headline") %&gt;% # All elements of class "mw-headline" (note the . indicating a class)
+  html_text()
+```
+
+```
+##  [1] "Description"                            
+##  [2] "History"                                
+##  [3] "Name"                                   
+##  [4] "Key facts"                              
+##  [5] "Historical maps"                        
+##  [6] "Geography"                              
+##  [7] "Divisions"                              
+##  [8] "Emergence and future"                   
+##  [9] "Tributaries"                            
+## [10] "Outflows, evaporation, water extraction"
+## [11] "Islands"                                
+## [12] "Peninsulas"                             
+## [13] "Shore"                                  
+## [14] "Climate"                                
+## [15] "International borders"                  
+## [16] "Floods"                                 
+## [17] "Ecology"                                
+## [18] "Flora"                                  
+## [19] "Fauna"                                  
+## [20] "Birds"                                  
+## [21] "Songbirds"                              
+## [22] "Waterfowl"                              
+## [23] "Overwintering"                          
+## [24] "Migration"                              
+## [25] "Fish"                                   
+## [26] "Introduced species"                     
+## [27] "Well-known non-native species"          
+## [28] "Wrecks on the lake bed"                 
+## [29] "Tourism, leisure and sports"            
+## [30] "Sights and cultural heritage"           
+## [31] "Cultural events"                        
+## [32] "Biking"                                 
+## [33] "Hiking and pilgrim trails"              
+## [34] "Swimming"                               
+## [35] "Diving"                                 
+## [36] "Boating, recreational boating"          
+## [37] "Settlements on the lake"                
+## [38] "Austria"                                
+## [39] "Germany"                                
+## [40] "Switzerland"                            
+## [41] "Fishing"                                
+## [42] "See also"                               
+## [43] "Notes and references"                   
+## [44] "Notes"                                  
+## [45] "References"                             
+## [46] "Further reading"                        
+## [47] "External links"
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract article text without headlines as single paragraphs:
+
+
+```r
+wiki_html %&gt;% 
+  html_elements("#bodyContent") %&gt;%
+  html_elements("p") %&gt;% 
+  html_text(trim = TRUE) # Trim leading and trailing whitespace
+```
+
+```
+##   [1] ""                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##   [2] "Lake Constance (German: Bodensee) refers to three bodies of water on the Rhine at the northern foot of the Alps: Upper Lake Constance (Obersee), Lower Lake Constance (Untersee), and a connecting stretch of the Rhine, called the Lake Rhine (Seerhein). These waterbodies lie within the Lake Constance Basin (Bodenseebecken), which is part of the Alpine Foreland and through which the Rhine flows.[2][3]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##   [3] "The lake is situated where Germany, Switzerland, and Austria meet. Its shorelines lie in the German states of Bavaria and Baden-Württemberg, the Swiss cantons of St. Gallen, Thurgau, and Schaffhausen, and the Austrian state of Vorarlberg. The Rhine flows, as Alpine Rhine, into the lake from the south, with its original course forming the Austro-Swiss border, and has its outflow on the Lower Lake where — except for Schaffhausen — it forms, as High Rhine, the German-Swiss border as far as the city of Basel.[4][5]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##   [4] "The most populous towns on the Upper Lake are Constance (German: Konstanz), Friedrichshafen, Bregenz, Lindau (Bodensee), Überlingen and Kreuzlingen. The largest town on the Lower Lake is Radolfzell am Bodensee. The largest islands are Reichenau in the Lower Lake, and Lindau and Mainau in the Upper Lake."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##   [5] "While in English and the Romance languages, the lake is named after the city of Constance, the German name derives from the village of Bodman (municipality of Bodman-Ludwigshafen), in the northwesternmost corner of the lake."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##   [6] "Lake Constance is the third largest freshwater European lake in surface area (and the second largest in volume), after Lake Geneva and (in surface area) Lake Balaton, in Central and Western Europe."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+##   [7] "It is 63 km (39 mi) long, and, nearly 14 km (8.7 mi) at its widest point. It covers about 536 km2 (207 sq mi), and is 395 m (1,296 ft) above sea level. Its greatest depth is 252 metres (827 ft), exactly in the middle of the Upper Lake. Its volume is about 48 km3 (12 cu mi).[1]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+##   [8] "The lake has two parts: the main east section, called Obersee or \"Upper Lake\", covers about 473 square kilometres (183 sq mi), including its northwestern arm, the Überlinger See (61 km2 (24 sq mi)), and the much smaller west section, called Untersee or \"Lower Lake\", with an area of about 63 square kilometres (24 sq mi).[1][3]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##   [9] "The connection between these two lakes is the Seerhein (lit.: \"Lake Rhine\"). Geographically, it is sometimes not considered to be part of the lake, but a river.[1][4]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+##  [10] "The Lower Lake Constance is loosely divided into three sections around the Island of Reichenau: The two German parts, the Gnadensee (lit.: \"Lake Mercy\") north of the island and north of the peninsula of Mettnau (the Markelfinger Winkel), and the Zeller See, south of Radolfzell and to the northwest of the Reichenau island, and the mainly Swiss Rheinsee (lit.: \"Rhine Lake\") – not to be mismatched with the Seerhein at its start! – to the south of the island and with its southwestern arm leading to its effluent in Stein am Rhein.[1][3]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [11] "The river water of the regulated Alpine Rhine flows into the lake in the southeast near Bregenz, Austria, then through the Upper Lake Constance hardly targeting the Überlinger See, into the Seerhein in the town of Konstanz, then through the Rheinsee virtually without feeding both German parts of the Lower Lake, and finally feeds the start of the High Rhine in Swiss town Stein am Rhein.[1][5][3]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [12] "The lake itself is an important drinking water source for southwestern Germany."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+##  [13] "The culminating point of the lake's drainage basin is the Swiss peak Piz Russein of the Tödi massif of the Glarus Alps at 3,613 metres (11,854 ft) above sea level. It starts with the creek Aua da Russein (lit.: \"Water of the Russein\").[6]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##  [14] "Car ferries link Romanshorn, Switzerland, to Friedrichshafen, and Konstanz to Meersburg, all in Germany.[2][3]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+##  [15] "Lake Constance was formed by the Rhine Glacier during the ice age and is a zungenbecken lake. After the end of the last glacial period, about 10,000 years ago, the Obersee and Untersee still formed a single lake. The downward erosion of the High Rhine caused the lake level to gradually sink and a sill, the Konstanzer Schwelle, to emerge."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+##  [16] "The Rhine, the Bregenzer Ach, and the Dornbirner Ach carry sediments from the Alps to the lake, thus gradually decreasing the depth and reducing the extension of the lake in the southeast."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+##  [17] "In antiquity the two lakes had different names; later, for reasons which are unknown, they came to have the same name."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+##  [18] "In the 19th century, there were five different local time zones around Lake Constance. Constance, belonging to the Grand Duchy of Baden, adhered to Karlsruhe time, Friedrichshafen used the time of the Duchy of Württemberg, in Lindau, the Bavarian Munich time was observed, and Bregenz used Prague time, while the Swiss shore used Berne time. One would have needed to travel only 46 kilometres (29 mi) to visit five time zones. Given the amount of trade and traffic over Lake Constance, this led to serious confusion. Public clocks in harbors used three different clock faces, depending on the destinations offered by the boat companies. In 1892, all German territories used CET, the Austrian railways had already introduced CET the previous year and Switzerland followed in 1894. Because traffic timetables had not been yet updated, CET became the sole valid time around and on Lake Constance in 1895.[7]"                                                                                                                                                                                                                                
+##  [19] "The Roman geographer Pomponius Mela was the first to mention the lakes around 43 AD, calling the upper lake Lacus Venetus and the lower lake Lacus Acronius, the Rhine passing through both. Around 75 AD, The naturalist Pliny the Elder called them both, Lacus Raetiae Brigantinus after the main Roman town on the lake, Brigantium (later Bregenz). This name is associated with the Celtic Brigantii who lived here, although it is not clear whether the place was named after the tribe or the inhabitants of the region were named after their main settlement. Ammianus Marcellinus later used the form Lacus Brigantiae.[8]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+##  [20] "The current German name of Bodensee derives from the place name Bodman, which probably originally derived from the Old High German bodamon which meant \"on the soils\", indicating a place on level terrain by the lake.[9]:500 This place, situated at the west end of Lake Überlingen (Überlinger See), had a more supraregional character for a certain period in the early Middle Ages as a Frankish imperial palace (Königspfalz), Alamannian ducal seat and mint, which is why the name may have been transferred to the lake (\"lake, by which Bodman is situated\" = Bodmansee). From 833/834 AD, in Latin sources, the name appears in its Latinised form lacus potamicus.[10] Therefore, the name actually derived from the Bodman Pfalz (Latinized as Potamum) was wrongly assumed by monastic scholars like Walahfrid Strabo to be derived from the Greek word potamos for \"river\" and meant \"river lake\". They may also have been influenced by the fact that the Rhine flowed through the lake.[9]:501ff"                                                                                                                                             
+##  [21] "Wolfram von Eschenbach describes it in Middle High German as the Bodemensee or Bodemsee[11] which has finally evolved into the present German name, Bodensee. The name may be linked to that of the Bodanrück, the hill range between Lake Überlingen and the Lower Lake, and the history of the House of Bodman."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+##  [22] "The German name of the lake, Bodensee, has been adopted by many other languages, for example: Dutch: Bodenmeer, Danish: Bodensøen, Norwegian: Bodensjøen, Swedish: Bodensjön, Finnish: Bodenjärvi, Russian: &lt;U+0411&gt;&lt;U+043E&gt;&lt;U+0434&gt;&lt;U+0435&gt;&lt;U+043D&gt;&lt;U+0441&gt;&lt;U+043A&gt;&lt;U+043E&gt;&lt;U+0435&gt; &lt;U+043E&gt;&lt;U+0437&gt;&lt;U+0435&gt;&lt;U+0440&gt;&lt;U+043E&gt;, Polish: Jezioro Bodenskie, Czech: Bodamské jezero, Slovak: Bodamské jazero, Hungarian: Bodeni-tó, Croatian: Bodensko jezero, Albanian: Liqeni i Bodenit."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+##  [23] "After the Council of Constance in the 15th century, the alternative name Lacus Constantinus was used in the (Roman Catholic) Romance language area. This name, which had been attested as early as 1187 in the form Lacus Constantiensis,[8] came from the town of Konstanz at the outflow of the Rhine from the Obersee, whose original name, Constantia, was in turn derived from the Roman emperor, Constantius Chlorus (around 300 AD). Hence the French: Lac de Constance, Italian: Lago di Costanza, Portuguese: Lago de Constança, Spanish: Lago de Constanza, Romanian: Lacul Constan&lt;U+021B&gt;a, Greek: &lt;U+039B&gt;&lt;U+03AF&gt;µ&lt;U+03BD&gt;&lt;U+03B7&gt; t&lt;U+03B7&gt;&lt;U+03C2&gt; &lt;U+039A&gt;&lt;U+03C9&gt;&lt;U+03BD&gt;sta&lt;U+03BD&gt;t&lt;U+03AF&gt;a&lt;U+03C2&gt; – Limni tis Konstantias. The Arabic, &lt;U+0628&gt;&lt;U+062D&gt;&lt;U+064A&gt;&lt;U+0631&gt;&lt;U+0629&gt; &lt;U+0643&gt;&lt;U+0648&gt;&lt;U+0646&gt;&lt;U+0633&gt;&lt;U+062A&gt;&lt;U+0627&gt;&lt;U+0646&gt;&lt;U+0633&gt; buhaira Konstans and the Turkish, Konstanz gölü, probably go back to the French form of the name. Even in Romance-influenced English the name \"Lake Constance\" gained a foothold and was then exported into other languages such as Hebrew: &lt;U+05D9&gt;&lt;U+05DE&gt;&lt;U+05EA&gt; &lt;U+05E7&gt;&lt;U+05D5&gt;&lt;U+05E0&gt;&lt;U+05E1&gt;&lt;U+05D8&gt;&lt;U+05E0&gt;&lt;U+05E5&gt; yamat Konstanz and Swahili: Ziwa la Konstanz. In many languages both forms exist in parallel e.g. Romansh: Lai da Constanza and Lai Bodan, Esperanto: Konstanca Lago and Bodenlago.[citation needed]"
+##  [24] "The poetic name, \"Swabian Sea\" was adopted by authors of the early modern era and the Enlightenment from ancient authors, possibly Tacitus. However, this assumption was based on an error (similar to that of the Teutoburg Forest and the Taunus): the Romans sometimes used the name Mare Suebicum for the Baltic Sea, not Lake Constance. In times when the Romans had located the so-called \"Suebi\", then an Elbe Germanic tribe near a sea, this was understandable. The authors of the Early Modern Period overlooked this and adopted the name for the largest lake in the middle of the former Duchy of Swabia, which also included parts of today's Switzerland.[12] Today the name Swabian Sea (Schwäbisches Meer) is only used jocularly as a hyperbolic term for Lake Constance.[13]"                                                                                                                                                                                                                                                                                                                                                                   
+##  [25] "No Paleolithic finds have been made in the immediate vicinity of the lake, because the region of Lake Constance was long covered by the Rhine Glacier. The discovery of stone tools (microliths) indicate that hunters and gatherers of the Mesolithic period (Middle Stone Age, 8,000–5,500 BC) frequented the area without settling, however. Only hunting camps have been confirmed. The earliest Neolithic farmers, who belonged to the Linear Pottery culture, also left no traces behind, because the Alpine foreland lay away from the routes along which they had spread during the 6th millennium BC.[14] This changed only in the middle and late Neolithic when shore settlements were established, the so-called pile dwelling and wetland settlements, which have now been uncovered mainly on Lake Überlingen, the Constance Hopper and on the Obersee. At Unteruhldingen, a pile dwelling village has been reconstructed, and now forms an open air museum."                                                                                                                                                                                              
+##  [26] "Grave finds from Singen am Hohentwiel date to the beginning of the Early Bronze Age and shore settlements were repeatedly built during the Neolithic Period and the Bronze Age (up to 800 BC). During the following Iron Age the settlement history is interrupted. The settlement of the shore of Lake Constance during the Hallstatt period is attested by grave mounds, which today are usually found in forests where they have been protected from the destruction by agriculture. Since the late Hallstatt period, the peoples living on Lake Constance are referred to as the Celts. During the La Tène period from 450 BC, the population density decreases, as can be deduced partly due from the fact that no more grave mounds were built. For the first time, written reports on Lake Constance have survived. Thus, we learn that the Helvetians settled by the lake in the south, the Rhaetians in the area of the Alpine Rhine Valley and the Vindelici in the north-east. The most important places on the lake were Bregenz (Celtic Brigantion) and today's Constance."                                                                                 
+##  [27] "In the course of the Roman Alpine campaign of 16/15 BC, the Lake Constance region was integrated into the Roman Empire. During the campaign, there was also supposed to have been a battle on Lake Constance. The geographer, Pomponius Mela, makes the first mention in 43 AD of Lake Constance as two lakes – the Lacus Venetus (Upper Lake) and the Lacus Acronius (Untersee) – with the Rhine flowing through both. Pliny the Elder referred to Lake Constance as Lacus Brigantinus for the first time. The most important Roman site was Bregenz, which soon became subject to Roman municipal law and later became the seat of the Prefect of the Lake Constance fleet. The Romans were also in Lindau, but settled only on the hills around Lindau as the lakeshore was swampy. Other Roman towns were Constantia (Constance) and Arbor Felix (Arbon)."                                                                                                                                                                                                                                                                                                           
+##  [28] "After the borders of the Roman Empire were drawn back to the Rhine boundary in the 3rd century BC, the Alemanni gradually settled on the north shore of Lake Constance and, later, on the south bank as well. After the introduction of Christianity, the cultural significance of the region grew as a result of the founding of Reichenau Abbey and the Bishopric of Constance. Under the rule of the Hohenstaufens, Imperial Diets (Reichstage) were held by Lake Constance. In Constance, too, a treaty was drawn up between the Hohenstaufen emperor and the Lombard League. Lake Constance also played an important role as a trading post for goods being traded between German and Italian states."                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+##  [29] "During the Thirty Years' War, there were various conflicts over the control of the region during the Lake War (1632–1648)."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+##  [30] "After the War of the Second Coalition (1798–1802), which also affected the region and during which Austrian and French flotillas operated on Lake Constance, there was a reorganisation of state relationships."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+##  [31] "Lake Constance is located in the foothills of the Alps. The shore length of both main lakes is 273 kilometres (170 mi) long. Of this, 173 kilometres (107 mi) are located in Germany (Baden-Württemberg 155 kilometres or 96 miles, Bavaria 18 kilometres or 11 miles), 28 kilometres (17 mi) run through Austria and 72 kilometres (45 mi) through Switzerland.[17] If the upper and lower lakes are combined, Lake Constance has a total area of 536 km2 (207 sq mi), the third largest lake in Central Europe by area after Lake Balaton (594 km2 or 229 sq mi) and Lake Geneva (580 km2 or 220 sq mi). It is also the second largest by water volume (48.5 km3 or 11.6 cu mi or 39,300,000 acre·ft)[18] after Lake Geneva (89 km3 or 21 cu mi or 72,000,000 acre·ft) and extends for over 69.2 kilometres (43.0 mi) between Bregenz and Stein am Rhein. Its catchment area is around 11,500 km2 (4,400 sq mi), and reaching as far south as Lago di Lei in Italy.[19]"                                                                                                                                                                                               
+##  [32] "The area of the Obersee, or Upper Lake, is 473 km2 (183 sq mi). It extends from Bregenz to Bodman-Ludwigshafen for over 63.3 kilometres (39.3 mi) and is 14 kilometres (8.7 mi) wide between Friedrichshafen and Romanshorn. At its deepest point between Fischbach and Uttwil, it is 251.14 metres (824.0 ft) deep."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [33] "The three small bays on the Vorarlberg shore have their own names: the Bay of Bregenz, off Hard and Fußach is the Bay of Fussach and, west of that is the Wetterwinkel. Farther west, now in Switzerland, is the Bay of Rorschach. To the north, on the Bavarian side, is the Bay of Reutin. The railway embankment from the mainland to the island of Lindau and the motorway bridge over the lake border the so-called Little Lake (Kleiner See), which is located between the Lindau village of Aeschach and the island."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##  [34] "The northwestern, finger-shaped arm of the Obersee is called Überlinger See (or Überlingersee in Swiss Standard German), or Lake Überlingen. It is sometimes regarded as a separate lake, the boundary between Lake Überlingen and the rest of the Upper Lake runs approximately along the line between the southeast tip of Bodanrück (the Hörnle, which belongs to the town of Konstanz) and Meersburg. The Constance Hopper lies between the German and Swiss shores east of Konstanz."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+##  [35] "The Obersee and Untersee are connected by the Seerhein."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+##  [36] "The Untersee, or Lower Lake, which is separated from the Obersee and from its north-west arm, the Überlinger See, by the large peninsula of Bodanrück, has an area of 63 km2 (24 sq mi). It is strongly characterised and divided into different areas by end moraines, various glacial snouts and medial moraines. These various areas of the lake have their own names. North of Reichenau Island is the Gnadensee. West of the island of Reichenau, between the peninsula of Höri and the peninsula of Mettnau is the Zeller See (or Zellersee in Swiss Standard German), or Lake Zell. North of the peninsula and swamp land Mettnau lies the lake part Markelfinger Winkel. The drumlins of the southern Bodanrück continue along the bed of these northern parts of the lake. South of the Reichenau, from Gottlieben to Eschenz, stretches the Rheinsee (lit.: \"Rhine Lake\") with strong Rhine currents in places. Previously this lake part was named Lake Bernang after the village of Berlingen. On most of the maps the name of the Rheinsee is not shown, because this place is best suited for the name of the Untersee.[20]"                             
+##  [37] "The present-day shape of Lake Constance has resulted from the combination of several factors:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [38] "Like any glacial lake, Lake Constance will also silt up by sedimentation. This process can best be observed at the mouths of the larger rivers, especially that of the Alpine Rhine. The silting up process is accelerated by ever-increasing erosion by the Rhine and the associated reduction in the level of the lake."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+##  [39] "The main tributary of Lake Constance is the Alpine Rhine. The Alpine Rhine and the Seerhein do not mix greatly with the waters of the lake and flow through the lakes along courses that change relatively little. There are also numerous smaller tributaries (236 in all). The most important tributaries of the Obersee are (counterclockwise) the Dornbirner Ach, Bregenzer Ach, Leiblach, Argen, Schussen, Rotach, Seefelder Aach, Stockacher Aach, Salmsacher Aach, the Aach near Arbon, Steinach, Goldach and the Old Rhine. The outflow of the Obersee is the Seerhein, which in turn is the main tributary of the Untersee. The most important tributary of the Untersee is the Radolfzeller Aach."                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##  [40] "Because the Alpine Rhine brings with it drift from the mountains and deposits this material as sediment, the Bay of Bregenz will silt up in a few centuries time. The silting up of the entire Lake Constance is estimated to take another ten to twenty thousand years."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+##  [41] "The outflow of the Untersee is the High Rhine with the Rhine Falls at Schaffhausen. Both the average precipitation of 0.45 km³/a and evaporation which averages 0.29 km³/a cause a net change in the level of Lake Constance that is less when compared to the influence of the inflows and outflows.[18] Further quantities of lake water are extracted by municipal waterworks around the lake and the water company of Bodensee-Wasserversorgung."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [42] ""                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##  [43] "In Lake Constance there are ten islands that are larger than 2,000 m2 (22,000 sq ft)."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+##  [44] "By far the largest is the island of Reichenau in the Untersee, which belongs to the municipality of Reichenau. The former abbey of Reichenau is a UNESCO World Heritage Site due to its three early and highly medieval churches. The island is also known for its intensive cultivation of fruit and vegetables."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+##  [45] "The island of Lindau is located in the east of the Obersee, and is the second largest island. On it is the old town and main railway station of Lindau."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+##  [46] "The third largest island is Mainau in the southeast of Lake Überlingen. The owners, the family of Bernadotte, have set up the island as a tourist attraction and created botanical gardens and wildlife enclosures."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+##  [47] "Relatively large, but uninhabited and inaccessible because of their status as nature reserves, are two islands off the Wollmatinger Ried: the Triboldingerbohl which has an area of 13 ha (32 acres) and Mittler or Langbohl which is just three hectares (7.4 acres) in area."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+##  [48] "Smaller islands in the Obersee are:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+##  [49] "In the Untersee are:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [50] "In Lake Constance there are several peninsulas which vary greatly in size:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+##  [51] "The shores of Lake Constance consist mainly of gravel. In some places there are also sandy beaches, such as the Rohrspitz in the Austrian section of the lake, the Langenargen and Marienschlucht."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+##  [52] "According to the data of the International Water Protection Commission for the Lake Constance, the approximate shore length is 273 km (170 mi) (see Coastline paradox). The inflow of water is constantly changing, mainly due to rain and the snow melt in the Alps. Its average surface area is about 395 m above NN (in Switzerland the absolute value is slightly higher in m above sea level). The more or less regular seasonal fluctuations in the water level also lead to slight variations in shore length and differences in the shore zone habitats (depending on high and low water)."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+##  [53] "The climate of the Lake Constance area is characterised by mild temperatures with moderate gradients, thanks to the balancing and retarding effect of the large body of water. However, due to the year-round influence of föhn winds which causes frequent fog in winter and close weather in summer, it is considered a stressful climate."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+##  [54] "Lake Constance is also considered to be a risky and challenging lake for water sports because of the danger of gusty winds which can whip up waves as the weather changes suddenly. The most dangerous wind is the föhn, a warm down-slope wind from the Alps, which spreads out across the water, especially through the Alpine Rhine Valley and can generate waves several metres high."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+##  [55] "Similarly dangerous for those unfamiliar with the area, are the sudden stormy gusts of wind during summer thunderstorms. They constantly claim victims from the water sports fraternity. During a thunderstorm in July 2006, waves reached heights of up to 3.50 metres."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+##  [56] "For these reasons, there is a storm warning system in all three neighbouring countries. For storm warning purposes, Lake Constance is divided into three warning regions (west, centre and east). Warnings can be issued for each region independently. A \"high winds\" warning will be issued when squalls are expected of between 25 and 33 knots or registering force 6 to 8 on the Beaufort scale. A gale warning announces the likelihood of gale-force winds, i.e. those at speeds as of 34 knots or more or force 8 on the Beaufort scale. In order to issue these warnings, orange-coloured flashing lights are installed around the lake, which flash at a frequency of 40 times per minute for high winds or 90 times per minute for gales. It can happen that, due to the differently regulated responsibilities and assessments, a gale warning is issued on the Swiss side of the Obersee, but not on the German or Austrian shores, and vice versa. Ships and ferries on Lake Constance indicate a gale warning by hoisting a Sturmballon (\"storm ball\") up the mast."                                                                                  
+##  [57] "A one-hundred year event is the freezing over of Lake Constance, when the Lower Lake, Lake Überlingen and the Upper Lake are completely frozen over so that people can safely cross the lake on foot. The three last so-called Seegfrörne events were in 1963, 1880 and 1830."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [58] "Certain parts of the lake freeze over more frequently, mainly due to their shallow depth of water and shelter, as is the case, for example, of the so-called Markelfinger Winkel between the municipality of Markelfingen and the Mettnau peninsula."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [59] "The lake lies where the countries of Austria, Germany, and Switzerland meet.[25] There is no legally binding agreement as to where the borders lie between the three countries.[25][26] However, Switzerland holds the view that the border runs through the middle of the lake, Austria is of the opinion that the contentious area belongs to all the states on its banks, which is known as a \"condominium\", and Germany holds an ambiguous opinion.[25][27] Legal questions pertaining to ship transport and fishing are regulated in separate treaties."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+##  [60] "Disputes occasionally arise. One concerns a houseboat which was moored in two states (ECJ c. 224/97 Erich Ciola); another concerns the rights to fish in the Bay of Bregenz. In relation to the latter, an Austrian family was of the opinion that it alone had the right to fish in broad portions of the bay. However, this was accepted neither by the Austrian courts nor by the organs and courts of the other states.[28]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+##  [61] ""                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##  [62] "Until the 19th century, Lake Constance was a natural lake. Since then, nature has been heavily influenced by clearing and the cultivation of much of the land around its shores. However, some near-natural areas have been largely conserved, especially in the nature reserves, or were re-naturalised. As a result, the Lake Constance region has some unusual ecological features. These include the large forested area on the Bodanrück, the occurrence of marsh gentian and orchids of the genera Dactylorhiza and Orchis in the Wollmatinger Ried, and the Siberian iris (Iris sibirica) in the Eriskircher Ried, which was therefore given its own name.[29] One unique species among the local flora is the Lake Constance forget-me-not (Myosotis rehsteineri), whose habitat is restricted to undisturbed beaches of lime trees."                                                                                                                                                                                                                                                                                                                            
+##  [63] "Lake Constance is also the home of numerous bird species, many of which nest in its nature reserves, such as the Wollmatinger Ried or the Mettnau peninsula. 412 species have so far been recorded.[30]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+##  [64] "The ten most common breeding bird species at Lake Constance according to a 2000–2003 survey in descending order are the: blackbird, chaffinch, house sparrow, great tit, blackcap, starling, robin, chiffchaff, greenfinch, and blue tit.[31]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [65] "In spring, the Lake Constance is an important breeding ground, especially for the coot and great crested grebe.[32] Typical waterfowl include the: shoveler, goldeneye, goosander, pochard, grey heron, pintail, tufted duck and mallard.[33]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [66] "In December 2014, 1,389 cormorant were counted. The International Lake Constance Fishery Association (IBF) estimates the food requirements of the cormorants on Lake Constance at 150 tonnes of fish annually.[34]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+##  [67] "Lake Constance is an important overwintering area for around 250,000 birds.[35] annually. Bird species such as the dunlin, the curlew and the lapwing overwinter at Lake Constance.[36] In the middle of December 2014 there were 56,798 heron, 51,713 coot and 43,938 pochard.[34] In November/December are about 10,000 to 15,000 red-crested pochard and 10,000 great crested grebe on Lake Constance.[37]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [68] "During migration in late autumn there are also numerous loons on the lake (black-throated and red-throated loon, as well as a few great northern loons). Lake Constance is also very important as a staging post during the bird migration. Bird migration is often inconspicuous and most noticeable when there are special weather conditions that make day migration obvious. Only where there is a prolonged spell of widespread low-pressure is it common to observe the congestion of large groups of migratory birds. This can often be observed in autumn on the Eriskircher Ried on the northern shore of Lake Constance. This is where broad front migration converges on the lake and birds then try to move along the shore towards the northwest. The importance of Lake Constance as an important area for resting and overwintering is underlined by the Max Planck Institute for Ornithology's Radolfzell Bird Observatory (Vogelwarte Radolfzell), which is the bird ringing centre for the German states of Bavaria, Baden-Württemberg, Berlin, Rhineland-Palatinate and the Saarland as well as for Austria, and which researches bird migration.[38]"
+##  [69] "Around 45 species of fish live in Lake Constance. The annual haul from fishing is 1.5 million kg. Unusual species occurring here considering the location of the lake are the whitefish (Coregonus spec.) and the Arctic char (Salvelinus alpinus). Fish that are important for the fishing industry are:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+##  [70] "The Bodenseefelchen (Coregonus wartmanni), which was named after Lake Constance due to the great numbers found there, is often prepared whole or as a fillet, in the style of the miller's wife (nach Müllerin Art), in local fish restaurants in a similar way to other trout[40] It is also often served smoked."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+##  [71] "The endemic species, formerly found in Lake Constance, the Bodensee-Kilch (Coregonus gutturosus) and deepwater char (Salvelinus profundus) are now assumed to be extinct.[41]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+##  [72] "For many years non-native species have settled in the Lake Constance ecosystem and, in some cases, endangered or threatened native flora and fauna. At Lake Constance, non-native species have been increasing annually. Several have been transported from other waterbodies as 'blind passengers' on the outside of boats, life jackets, anchor chains or ropes or diving gear.[42] Others have immigrated from the Black Sea or the Danube since the opening of the Main-Danube Canal. Others have been deliberately introduced.[43]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+##  [73] "Even the rainbow trout (Oncorhynchus mykiss) is not a native fish. It was introduced into Lake Constance around 1880 for economic reasons to enhance the local fauna.[44]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+##  [74] "Among the foreign species of animal in Lake Constance are the zebra mussel (Dreissena polymorpha) which, since the 18th century, has spread from the Black Sea region across most of Europe and was carried into Lake Constance between 1960 and 1965. After a huge increase in numbers during the 1980s in the Rhine and large lakes, this species is now in retreat today. The zebra mussel causes problems because, among other things, it blocks water extraction pipes. In addition, the species can be a disaster for domestic shellfish, because it competes for their food.[45] Today, according to the Institute for Lake Research (Institut für Seenforschung, ISF), the zebra mussel is also an important food for overwintering waterfowl. In fact, the number of overwinterers has more than doubled in around 30 years.[44]"                                                                                                                                                                                                                                                                                                                               
+##  [75] "The killer shrimp (Dikerogammarus villosus) has spread since 2002 from two sections of shoreline near Hagnau and Immenstaad, over the whole Lake Überlingen (2004), the whole of the Upper Lake (2006) and almost the whole Lake Constance and Rheinsee shore (2007).[46] As its name implies, it is a voracious burglar of fish larvae and fish eggs.[44]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+##  [76] "The most recent example is the little opossum shrimp (Limnomysis benedeni), only six to eleven millimeters long, which was found in 2006 in the Vorarlberg region of Hard, and can now be found almost all over Lake Constance.[44] It comes from the waters around the Black Sea. It was presumably first transported by ships up the Danube before it spread into the Rhine river system and entered Lake Constance. The opossum shrimp, which occurs in many places in shoals of several million in winter, are already an influential link in the food chain in Lake Constance. They consume dead animal and plant material as well as phytoplankton, but are also eaten by fish themselves.[45]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [77] "Today, in western Lake Constance are found: the North American spinycheek crayfish (Orconectes limosus), which was introduced into European waters in the mid-19th century to increase the yield,[44] occasionally the Chinese mitten crab (Eriocheir sinensis), and in the lake's tributaries, the signal crayfish (Pacifastacus leniusulus). As these species of large crayfish are immune to crayfish plague, but spread the pathogen, they are a great danger to native species such as noble crayfish, white-clawed crayfish or stone crayfish. The animals are often undemanding, multiply rapidly and lead predatory lives, thus also posing a threat to various small species of fish.[45] The ISF has been systematically researching the subject since 2003.[44]"                                                                                                                                                                                                                                                                                                                                                                                              
+##  [78] "After a collision with the Stadt Zürich in 1864 the wreck of the Jura has lain on the lake bed at a depth of 45 metres off the Swiss shore. In the early 20th century four ships were sunk in the Obersee after being taken out of service: in 1931 the Baden, formerly the Kaiser Wilhelm, in 1932 the Helvetia, in 1933 the Säntis and in 1934 the Stadt Radolfzell. The hull of the burnt-out Friedrichshafen was scuttled in 1944 off the mouth of the Argen in 100 to 150 metres of water.[47][48]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+##  [79] "The tourism and leisure industry is important for this region. Overnight stays reached 17,56m visitors in 2012 with a turnover of about 1.9bn Euros. The same amount comes from the 70 million visitors that visit Lake Constance each year.[49]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##  [80] "This region is known for sightseeing, water-sports, winter-sports like Skiing, summer-sports like Swimming (sport), Sailing and recreation. It is also one of the few places where modern Zeppelin airships operate and 12–14 people can take a trip above the lake around various points of interests.[50]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##  [81] "In cooperation with tourism service providers, tourism organizations and public institutions in Germany, Austria, Switzerland and Liechtenstein, the International Bodensee Tourismus GmbH (IBT GmbH)[51] is responsible for the tourism marketing of the Lake Constance region."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+##  [82] "The lake and the region around it have a substantial touristic infrastructure as well as many attractions and points of interests. Important are especially cities like Konstanz, Überlingen, Meersburg, Friedrichshafen, Lindau and Bregenz as they are the big hubs for boating tourism. The main tourism attractions are places like Rhine Falls, one of the three biggest waterfalls in Europe, the Mainau Island and Reichenau Island (UNESCO world heritage), the pilgrimage church Birnau, castles and palaces like Salem Abbey, Meersburg Castle as well as another UNESCO world heritage site, the Pfahlbaumuseum Unteruhldingen (German for Stilt house museum) as well as Church of St. George, Oberzell, Reichenau."                                                                                                                                                                                                                                                                                                                                                                                                                                         
+##  [83] "The Alps reach almost to the east of the lake, producing great scenic beauty. The Pfänderbahn goes from top of the mountain right down, next to the lake in Bregenz."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [84] "Lake Constance is the location for the annual Bregenzer Festspiele, a well-known arts festival that, among other venues, takes place on a floating stage in Bregenz. The operas, plays and concerts performed are usually popular works, e.g. The Magic Flute by Wolfgang Amadeus Mozart or Rigoletto by Giuseppe Verdi.[52]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+##  [85] "Since 2001, the ART BODENSEE takes place in Dornbirn. It is an annual meeting point for the exchange between collectors, artists and art appreciators.[53]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+##  [86] "Biking around the lake is also possible on the 261 km (162 mi) long trail called \"Bodensee-Radweg\". It brings its visitors to the most interesting sites and goes around the whole lake. Nevertheless, various shortcuts via ferries allow shorter routes and the trail is suitable for all levels.[54] Note: There is also a trail that goes by the name \"Bodensee-Rundweg\".[55] This road was intended for pedestrians so biking is sometimes not suitable or allowed."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+##  [87] "The 260 kilometers long Lake Constance circular route, signposted as \"Bodensee Rundwanderweg\", leads around Lake Constance through the territories of Germany, Austria and Switzerland. It is mainly intended for hiking; cyclists follow the sometimes slightly different managed Lake Constance cycle path.[56] The trail can be walked in smaller stages of various lengths and offers nice views of the lake, landscape and wildlife. However, due to industrial settlements, buildings and nature reserves, not all the coastal zones are readily accessible. Furthermore, in the estuary of the rivers, such the Leiblach, Bregenzer Ach, canalized Rhine and Old Rhine (Fußacher breakthrough), considerable distances have to be covered inland to the next bridge or river crossing point. Due to busy riverside roads, the Bodensee-Rundweg sometimes runs as a trail above the lake with some lookout possibilities."                                                                                                                                                                                                                                       
+##  [88] "Lake Constance is also a hub for long-distance hikers and pilgrims. It has been a crucial reference point of important pilgrimage routes since ancient times:[57]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+##  [89] "Swimming in the lake is usually possible from mid-June to mid-September. Depending on the weather, the water temperatures reach 19 to 25 °C (66.2 to 77.0 °F). Within one day, differences of up to 3 °C (5.4 °F) are possible with appropriate sunlight, so that the lake invites to swim, especially on warm summer evenings.[60]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+##  [90] "Diving in Lake Constance is considered attractive and challenging. Most of the diving areas are located in the northern part of the lake (Überlingen, Ludwigshafen, Marienschlucht and others), a few also in the south.[61] The areas should be dived exclusively by experienced divers under the guidance of one of the local diving schools or a seasoned diver. Diving at some spots like the impressive devils table (\"Teufelstisch\") called rock needle in the lake in front of the Marienschlucht, is only allowed after approval by the district office Konstanz."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##  [91] "A famous freshwater wreck in Europe is the paddle steamer Jura, which lies in front of Bottighofen at a depth of  39 metres (128 feet). The canton of Thurgau, the office for archeology in Frauenfeld, has placed the Jura under protection as an underwater industrial monument.[62]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+##  [92] "For all divers, the water in Lake Constance—even in summer—is already below 10 °C (50 °F) from a depth of 10 metres (32.8 ft) which requires suitable cold-water regulators that do not freeze at such temperatures."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+##  [93] "The importance of pleasure boating is enormous. At the beginning of 2011, 57,875 amusement vehicles were registered for Lake Constance.[63]"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##  [94] "The legal basis for all shipping on the lake is the ordinance on shipping on Lake Constance, or \"Bodensee-Schifffahrtsordnung\". It is monitored on Lake Constance and on the Upper Rhine by the German, Swiss and Austrian Water Police/ \"Seepolizei\"."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+##  [95] "All boats must be registered, and boat drivers must hold a \"Bodenseeschifferpatent\" (Authorization to drive a patented vehicle on Lake Constance). It is awarded in Germany by the shipping offices of the district of Constance, the Lake Constance district and the district of Lindau, in Switzerland by the cantonal authorities and in Austria by the District Commission Bregenz. For pleasure boaters short-term guest licenses are possible (for the categories A for motorboats over 4.4 kW and D for sailboats over 12 m2 sail area)."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+##  [96] "Boating events"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+##  [97] "From the entry of the Rhine, on the northern or right shore:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+##  [98] "From the entry of the Rhine, on the southern or left shore:"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+##  [99] "The lake was frozen in the years 1077 (?), 1326 (partial), 1378 (partial), 1435, 1465 (partial), 1477 (partial), 1491 (partial?), 1517 (partial), 1571 (partial), 1573, 1600 (partial), 1684, 1695, 1709 (partial), 1795, 1830, 1880 (partial), and 1963."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+## [100] "About 1,000 tonnes (1,100 short tons) of fish were caught by 150 professional fishermen in 2001 which was below the previous ten-year average of 1,200 tonnes (1,300 short tons) per year. The Lake Constance trout (Salmo trutta) was almost extinct in the 1980s due to pollution, but thanks to protective measures they have made a significant return. Lake Constance is the home of the critically endangered species of trout Salvelinus profundus,[67] and formerly also the now extinct Lake Constance whitefish (Coregonus gutturosus).[68]"
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract article link targets in the article text:
+
+
+```r
+wiki_html %&gt;% 
+  html_elements("#bodyContent p &gt; a") %&gt;% 
+  html_attr("href")
+```
+
+```
+##   [1] "/wiki/German_language"                                   
+##   [2] "/wiki/Body_of_water"                                     
+##   [3] "/wiki/Rhine"                                             
+##   [4] "/wiki/Alps"                                              
+##   [5] "/wiki/Upper_Lake_Constance"                              
+##   [6] "/wiki/Lower_Lake_Constance"                              
+##   [7] "/wiki/Seerhein"                                          
+##   [8] "/wiki/Alpine_Foreland"                                   
+##   [9] "/wiki/Rhine"                                             
+##  [10] "/wiki/Bavaria"                                           
+##  [11] "/wiki/Baden-W%C3%BCrttemberg"                            
+##  [12] "/wiki/Canton_of_St._Gallen"                              
+##  [13] "/wiki/Canton_of_Thurgau"                                 
+##  [14] "/wiki/Canton_of_Schaffhausen"                            
+##  [15] "/wiki/Vorarlberg"                                        
+##  [16] "/wiki/Alpine_Rhine"                                      
+##  [17] "/wiki/Canton_of_Schaffhausen#Geography"                  
+##  [18] "/wiki/High_Rhine"                                        
+##  [19] "/wiki/Basel"                                             
+##  [20] "/wiki/Constance"                                         
+##  [21] "/wiki/German_language"                                   
+##  [22] "/wiki/Friedrichshafen"                                   
+##  [23] "/wiki/Bregenz"                                           
+##  [24] "/wiki/Lindau_(Bodensee)"                                 
+##  [25] "/wiki/%C3%9Cberlingen"                                   
+##  [26] "/wiki/Kreuzlingen"                                       
+##  [27] "/wiki/Radolfzell_am_Bodensee"                            
+##  [28] "/wiki/Reichenau_Island"                                  
+##  [29] "/wiki/Lindau_(island)"                                   
+##  [30] "/wiki/Mainau"                                            
+##  [31] "/wiki/Constance"                                         
+##  [32] "/wiki/Bodman-Ludwigshafen"                               
+##  [33] "/wiki/List_of_largest_lakes_of_Europe"                   
+##  [34] "/wiki/Freshwater"                                        
+##  [35] "/wiki/Lake_Geneva"                                       
+##  [36] "/wiki/Lake_Balaton"                                      
+##  [37] "/wiki/Sea_level"                                         
+##  [38] "/wiki/Obersee_(Lake_Constance)"                          
+##  [39] "/wiki/%C3%9Cberlinger_See"                               
+##  [40] "/wiki/Untersee_(Lake_Constance)"                         
+##  [41] "/wiki/Seerhein"                                          
+##  [42] "/wiki/Island_of_Reichenau"                               
+##  [43] "/wiki/Gnadensee"                                         
+##  [44] "/wiki/Markelfinger_Winkel"                               
+##  [45] "/wiki/Zeller_See_(Lake_Constance)"                       
+##  [46] "/wiki/Rheinsee"                                          
+##  [47] "/wiki/Stein_am_Rhein"                                    
+##  [48] "/wiki/Alpine_Rhine"                                      
+##  [49] "/wiki/Bregenz"                                           
+##  [50] "/wiki/Konstanz"                                          
+##  [51] "/wiki/High_Rhine"                                        
+##  [52] "/wiki/Piz_Russein"                                       
+##  [53] "/wiki/Glarus_Alps"                                       
+##  [54] "/wiki/Ferry"                                             
+##  [55] "/wiki/Romanshorn"                                        
+##  [56] "/wiki/Friedrichshafen"                                   
+##  [57] "/wiki/Konstanz"                                          
+##  [58] "/wiki/Meersburg"                                         
+##  [59] "/wiki/Rhine_Glacier"                                     
+##  [60] "/wiki/Quaternary_glaciation"                             
+##  [61] "/wiki/W%C3%BCrm_glaciation"                              
+##  [62] "/wiki/Downward_erosion"                                  
+##  [63] "/wiki/High_Rhine"                                        
+##  [64] "/wiki/Bregenzer_Ach"                                     
+##  [65] "/wiki/Dornbirner_Ach"                                    
+##  [66] "/wiki/Alps"                                              
+##  [67] "/wiki/Time_zone"                                         
+##  [68] "/wiki/Grand_Duchy_of_Baden"                              
+##  [69] "/wiki/Karlsruhe"                                         
+##  [70] "/wiki/Duchy_of_W%C3%BCrttemberg"                         
+##  [71] "/wiki/Central_European_Time"                             
+##  [72] "/wiki/Roman_Empire"                                      
+##  [73] "/wiki/Pomponius_Mela"                                    
+##  [74] "/wiki/Pliny_the_Elder"                                   
+##  [75] "/wiki/Celts"                                             
+##  [76] "/w/index.php?title=Brigantii&amp;action=edit&amp;redlink=1"      
+##  [77] "/wiki/Ammianus_Marcellinus"                              
+##  [78] "/wiki/Bodman-Ludwigshafen"                               
+##  [79] "/wiki/Old_High_German"                                   
+##  [80] "/wiki/Early_Middle_Ages"                                 
+##  [81] "/wiki/Franks"                                            
+##  [82] "/wiki/Kaiserpfalz"                                       
+##  [83] "/wiki/Alamanni"                                          
+##  [84] "/wiki/Mint_(facility)"                                   
+##  [85] "/wiki/Latinization_(historical)"                         
+##  [86] "/wiki/Walahfrid_Strabo"                                  
+##  [87] "/wiki/Wolfram_von_Eschenbach"                            
+##  [88] "/wiki/Middle_High_German"                                
+##  [89] "/wiki/Bodanr%C3%BCck"                                    
+##  [90] "/w/index.php?title=House_of_Bodman&amp;action=edit&amp;redlink=1"
+##  [91] "/wiki/Council_of_Constance"                              
+##  [92] "/wiki/Constantius_Chlorus"                               
+##  [93] "/wiki/Romansch_language"                                 
+##  [94] "/wiki/Swabia"                                            
+##  [95] "/wiki/Early_modern_era"                                  
+##  [96] "/wiki/Age_of_Enlightenment"                              
+##  [97] "/wiki/Tacitus"                                           
+##  [98] "/wiki/Teutoburg_Forest"                                  
+##  [99] "/wiki/Taunus"                                            
+## [100] "/wiki/Baltic_Sea"                                        
+##  [ reached getOption("max.print") -- omitted 264 entries ]
+```
+
+---
+
+# Web scraping with `rvest`
+
+Extract "ten largest tributaries" table by [Xpath](https://en.wikipedia.org/wiki/XPath):
+
+
+```r
+wiki_html %&gt;% 
+  html_elements(xpath = '//*[@id="mw-content-text"]/div[1]/table[2]') %&gt;% 
+  html_table()
+```
+
+```
+## [[1]]
+## # A tibble: 12 x 5
+##    River     `Average discharg~ `Dischargein %` `Catchment[km2]` `Catchmentin %`
+##    &lt;chr&gt;     &lt;chr&gt;              &lt;chr&gt;                      &lt;dbl&gt; &lt;chr&gt;          
+##  1 Alpine R~ 233                61.1                        6.12 56.1           
+##  2 Bregenze~ 48                 12,6                      832    7.6            
+##  3 Argen     19                 5.3                       656    6.0            
+##  4 Old Rhin~ 12                 3.1                       360    3.3            
+##  5 Schussen  11                 2.9                       822    7.5            
+##  6 Dornbirn~ 7.0                1.8                       196    1.8            
+##  7 Leiblach  3,3                0.9                       105    1.0            
+##  8 Seefelde~ 3,2                0.8                       280    2,6            
+##  9 Rotach    2.0                0.5                       130    1.2            
+## 10 Stockach~ 1.6                0.4                       221    2.0            
+## 11 Sum of t~ 340                89.6                        9.72 89.2           
+## 12 Total in~ 381                100.0                      10.9  100.0
+```
+
+---
+
+# Web scraping with `rvest`
+
+**Exercise 1: Web scraping:** 
+Try to obtain the headline, publication date, and article text (excluding lead and lower-level headlines) of the following Spiegel Online article: [Failed Football Deal: Investors Wanted to Make €6.1 Billion with Super League](https://www.spiegel.de/international/europe/investors-wanted-to-make-eur6-1-billion-with-super-league-a-11a7128b-222c-4db3-b17a-d7e234fb8d5c)
+
+Bonus points: write a function that works with every SpOn article formatted in the same way.
+
+&lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
+
+---
+
+# Good practices
+
+As already discussed last time, systematic web scraping can run into some legal grey areas. Common good web scraping practices thus include:
+
+- Respect site owner's terms: professional websites usually define a robots exclusion protocol in a file called `robots.txt` in the root of the web server that defines what may be scraped automatically and what not
+- Scrape sparingly: Only extract and store the information you need, do not overload servers with thousands of requests per minute
+- Introduce yourself: Define a point of contact in the user-agent string of your bot
+
+--
+
+The package `polite` simplifies the above practices by automatically reading out the `robots.txt` and adhering to the standards defined within. Main functions:
+
+- `bow()` to a web server, introduce yourself and read out `robots.txt`
+- `nod()` to update the current path on the same server (no need to bow multiple times to the same server)
+- `scrape()` to actually scrape the current path (and optionally pass parameters to the current path)
+
+---
+
+# Scraping with `polite`
+
+Let's give this a try:
+
+
+```r
+library(polite)
+wiki_session &lt;- bow("https://en.wikipedia.org/") # Include a custom user agent string with the argument user_agent
+wiki_session
+```
+
+```
+## &lt;polite session&gt; https://en.wikipedia.org/
+##     User-agent: polite R package - https://github.com/dmi3kno/polite
+##     robots.txt: 456 rules are defined for 33 bots
+##    Crawl delay: 5 sec
+##   The path is scrapable for this user-agent
+```
+
+Look's like we are allowed to scrape here.
+
+---
+
+# Scraping with `polite`
+
+Update path to specific article and scrape the article:
+
+
+```r
+article &lt;- nod(wiki_session, "wiki/Korean_fried_chicken") %&gt;% 
+  scrape()
+```
+
+--
+
+We can now use `rvest` functions to extract elements:
+
+
+```r
+article %&gt;% 
+  html_elements("h1") %&gt;% 
+  html_text()
+```
+
+```
+## [1] "Korean fried chicken"
+```
+
+---
+
+# Scraping with `polite` and `rvest`
+
+**Exercise 2: Scraping multiple articles** 
+
+1. Using `polite` functions, create a session for the international portal of [Spiegel Online](https://www.spiegel.de/international/): https://www.spiegel.de/international/ 
+2. Get the links/paths to the three most recent articles
+3. Using the `polite` principles, scrape the headline, date and article text of those three articles
+
+Bonus points: update the function from Exercise 1 to follow those principles.
+
+&lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
+
+---
+
+class: middle
+
+# News APIs
+
+---
+
+# News APIs
+
+Several news outlets provide their own content APIs, including:
+
+- [The Guardian](https://open-platform.theguardian.com/) 
+- [New York Times](https://developer.nytimes.com/)
+
+--
+
+There are also overarching APIs dedicating to searching news stories, for example:
+
+- [MediaCloud](https://mediacloud.org/)
+- [News API](https://newsapi.org/)
+
+The same principles of last week's session apply.
+
+---
+
+# Digression: Storing API keys
+
+When working on your projects, you will probably receive more and more API keys. It is good practice to store those as environment variables in a global- or project-level `.Renviron` file.
+
+--
+
+Set new variables by `Sys.setenv()`:
+
+
+```r
+Sys.setenv(TEST_API_KEY = "abc123456789")
+```
+
+--
+
+Then retrieve the values with `Sys.getenv()`:
+
+
+```r
+Sys.getenv("TEST_API_KEY")
+```
+
+```
+## [1] ""
+```
+
+This also means you can share code without accidentally exposing your secret API keys to the public. 
+
+---
+
+# MediaCloud
+
+[MediaCloud](https://mediacloud.org/) is an open-source platform for media analysis, monitoring media sources in 100+ countries, with news stories scraped almost in real time.
+
+The MediaCloud API (https://api.mediacloud.org/) is documented at https://github.com/mediacloud/backend/blob/master/doc/api_2_0_spec/api_2_0_spec.md. Rate limits are "1,000 API calls and 20,000 stories returned in any 7 day period".
+
+--
+
+The API offers lots of different endpoints. Some important endpoints for collecting news texts are:
+
+- `api/v2/media/list/`: Search for news outlets by name, tag, etc.
+- `api/v2/stories_public/list`: Search for news stories
+- `api/v2/stories_public/word_matrix`: Retrieve word matrices for news stories
+
+---
+
+# Using the MediaCloud API
+
+Let's try to obtain some Spiegel Online stories. We first need to now SpOn's MediaCloud id, so we may want so search the `api/v2/media/list/` endpoint. For all API calls, we authenticate by passing our API key to the parameter `key`.
+
+
+```r
+library(httr)
+mc_base_url &lt;- "https://api.mediacloud.org/"
+media_endpoint &lt;- "api/v2/media/list"
+
+res &lt;- GET(mc_base_url,
+           path = media_endpoint,
+           query = list(
+             name = "spiegel",
+             key = Sys.getenv("MEDIACLOUD_API_KEY")
+           ))
+```
+
+
+
+---
+
+# Using the MediaCloud API
+
+Unpack the response:
+
+
+```r
+res %&gt;% 
+  content() %&gt;% 
+  purrr::map_dfr(magrittr::extract, c("media_id", "name", "url"))
+```
+
+```
+## # A tibble: 2 x 3
+##   media_id name                url                         
+##      &lt;int&gt; &lt;chr&gt;               &lt;chr&gt;                       
+## 1    19831 Spiegel             http://www.spiegel.de       
+## 2    14771 Ik ben ulen spiegel http://de-te.livejournal.com
+```
+Look's like Spiegel's `media_id` is `19831`.
+
+---
+
+# Using the MediaCloud API
+
+Now we call the `api/v2/stories_public/list` endpoint for recent stories. Instead of through individual call parameters, media stories can be searched by passing a search string to the `q` parameter. Find more information here: https://mediacloud.org/support/query-guide/
+
+--
+
+For example, the query string `"media_id:19831+AND+text:medienstaatsvertrag` searches for all Spiegel stories containing the word "Medienstaatsvertrag".  However, `httr`'s URL parser reformats certain characters (e.g., `:`, `+`):
+
+
+```r
+stories_endpoint &lt;- "api/v2/stories_public/list"
+params = list(q = "media_id:19831+AND+text:medienstaatsvertrag",
+              rows = 100)
+
+stories_url &lt;- parse_url(mc_base_url)
+stories_url$path &lt;- stories_endpoint
+stories_url$query &lt;- params
+stories_url &lt;- build_url(stories_url)
+stories_url
+```
+
+```
+## [1] "https://api.mediacloud.org/api/v2/stories_public/list?q=media_id%3A19831%2BAND%2Btext%3Amedienstaatsvertrag&amp;rows=100"
+```
+
+---
+
+# Using the MediaCloud API
+
+We can just replace those characters again:
+
+
+```r
+stories_url &lt;- stringr::str_replace_all(stories_url, c("%3A" = ":", "%2B" = "+"))
+stories_url
+```
+
+```
+## [1] "https://api.mediacloud.org/api/v2/stories_public/list?q=media_id:19831+AND+text:medienstaatsvertrag&amp;rows=100"
+```
+
+--
+
+And are ready to call again:
+
+
+```r
+stories_url &lt;- paste(stories_url, "&amp;key=", Sys.getenv("MEDIACLOUD_API_KEY"), sep = "")
+res &lt;- GET(stories_url)
+```
+
+
+
+---
+
+# Using the MediaCloud API
+
+And unpack again:
+
+
+```r
+res %&gt;% 
+  content() %&gt;% 
+  purrr::map_dfr(magrittr::extract, c("stories_id", "publish_date", "title", "url"))
+```
+
+```
+## # A tibble: 10 x 4
+##    stories_id publish_date   title                     url                      
+##         &lt;int&gt; &lt;chr&gt;          &lt;chr&gt;                     &lt;chr&gt;                    
+##  1 1427334496 2019-10-24 02~ Reformpläne: Jetzt kommt~ https://www.spiegel.de/n~
+##  2 1620921456 2020-05-30 09~ Soziale Netzwerke: Trump~ https://www.spiegel.de/n~
+##  3 1644266463 2020-06-25 02~ Wissenschaftler fordern ~ https://www.spiegel.de/n~
+##  4 1776589639 2020-11-22 02~ Rundfunkgebühren: Reiner~ https://www.spiegel.de/p~
+##  5 1781748899 2020-11-27 11~ News des Tages: Hotels u~ https://www.spiegel.de/p~
+##  6 1783634326 2020-11-30 05~ Sachsen-Anhalt: Reiner H~ https://www.spiegel.de/p~
+##  7 1784902678 2020-12-01 12~ Sachsen-Anhalt: CDU will~ https://www.spiegel.de/p~
+##  8 1785923586 2020-12-02 13~ Sachsen-Anhalt: Friedric~ https://www.spiegel.de/p~
+##  9 1786351446 2020-12-03 01~ Rundfunkbeitrag: Stephan~ https://www.spiegel.de/p~
+## 10 1792633545 2020-12-09 06~ SPD: Rolf Mützenich krit~ https://www.spiegel.de/p~
+```
+
+---
+
+# Using the MediaCloud API
+
+Finally, let's obtain the word matrices for these stories:
+
+
+```r
+wm_endpoint &lt;- "api/v2/stories_public/word_matrix"
+params = list(q = "media_id:19831+AND+text:medienstaatsvertrag",
+              key = Sys.getenv("MEDIACLOUD_API_KEY"))
+
+wm_url &lt;- parse_url(mc_base_url)
+wm_url$path &lt;- wm_endpoint
+wm_url$query &lt;- params
+wm_url &lt;- build_url(wm_url) %&gt;% 
+  stringr::str_replace_all(c("%3A" = ":", "%2B" = "+"))
+```
+
+---
+
+# Using the MediaCloud API
+
+And call:
+
+
+```r
+res &lt;- GET(wm_url)
+```
+
+
+
+--
+
+The result contains to lists, `word_list` and `word_matrix`:
+
+
+```r
+wm &lt;- content(res)
+str(wm, max.level = 1)
+```
+
+```
+## List of 2
+##  $ word_list  :List of 1906
+##  $ word_matrix:List of 10
+```
+
+From the MediaCloud API documentation:
+
+- The word_matrix is a dictionary with the stories_id as the key and the word count dictionary of as the value. For each word count dictionary, the key is the word index of the word in the word_list and the value is the count of the word in that story.
+- The word list is a list of lists. The overall list includes the stems in the order that is referenced by the word index in the word_matrix word count dictionary for each story. Each individual list member includes the stem counted and the most common full word used with that stem in the set.
+
+---
+
+# Using the MediaCloud API
+
+Unpacking depends on how you prefer how to handle nested lists. To get to a document-feature matrix in [https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html](Tidytext) style, we may first separate both lists:
+
+
+```r
+word_list &lt;- wm$word_list
+word_matrix &lt;- wm$word_matrix
+```
+
+--
+
+Applying some [rectangling](https://tidyr.tidyverse.org/articles/rectangle.html) functions, we can create a tibble with the word list:
+
+
+```r
+word_list &lt;- word_list %&gt;% 
+    tibble::enframe(name = "word_counts_id", value = "word_forms") %&gt;% 
+    tidyr::hoist(word_forms, stem = 1, full = 2) %&gt;% 
+    dplyr::mutate(word_counts_id = word_counts_id - 1) # Because R starts to count at index 1
+```
+
+---
+
+# Using the MediaCloud API
+
+For each word contained in our stories, this gives us an ID, the word stem, and the most common full word associated with this stem: 
+
+
+```r
+word_list
+```
+
+```
+## # A tibble: 1,906 x 3
+##    word_counts_id stem                 full                 
+##             &lt;dbl&gt; &lt;chr&gt;                &lt;chr&gt;                
+##  1              0 inhalteanbiet        inhalteanbieter      
+##  2              1 ad                   ad                   
+##  3              2 pflichten            pflichten            
+##  4              3 reform               reform               
+##  5              4 handvol              handvoll             
+##  6              5 missbrauch           missbrauch           
+##  7              6 gemeinsamen          gemeinsamen          
+##  8              7 nrw                  nrw                  
+##  9              8 öffentlich-rechtlich öffentlich-rechtliche
+## 10              9 gegebenheiten        gegebenheiten        
+## # ... with 1,896 more rows
+```
+
+---
+
+# Using the MediaCloud API
+
+We rectangle the word matrix:
+
+
+```r
+word_matrix &lt;- word_matrix %&gt;% 
+    tibble::enframe(name = "stories_id", value = "word_counts") %&gt;% 
+    tidyr::unnest_longer(word_counts) %&gt;% 
+    dplyr::mutate(word_counts_id = as.integer(word_counts_id))
+
+word_matrix
+```
+
+```
+## # A tibble: 2,497 x 3
+##    stories_id word_counts word_counts_id
+##    &lt;chr&gt;            &lt;int&gt;          &lt;int&gt;
+##  1 1427334496           1              0
+##  2 1427334496           1              1
+##  3 1427334496           1             10
+##  4 1427334496           1            100
+##  5 1427334496           1            101
+##  6 1427334496           1            102
+##  7 1427334496           1            103
+##  8 1427334496           1            104
+##  9 1427334496           1            105
+## 10 1427334496           1            106
+## # ... with 2,487 more rows
+```
+
+---
+
+# Using the MediaCloud API
+
+And finally join both tibbles:
+
+
+```r
+tidy_matrix &lt;- word_matrix %&gt;% 
+    dplyr::left_join(word_list)
+```
+
+```
+## Joining, by = "word_counts_id"
+```
+
+```r
+tidy_matrix
+```
+
+```
+## # A tibble: 2,497 x 5
+##    stories_id word_counts word_counts_id stem             full              
+##    &lt;chr&gt;            &lt;int&gt;          &lt;dbl&gt; &lt;chr&gt;            &lt;chr&gt;             
+##  1 1427334496           1              0 inhalteanbiet    inhalteanbieter   
+##  2 1427334496           1              1 ad               ad                
+##  3 1427334496           1             10 offenlegen       offenlegen        
+##  4 1427334496           1            100 antworten        antworten         
+##  5 1427334496           1            101 angeh            angehe            
+##  6 1427334496           1            102 pflicht          pflicht           
+##  7 1427334496           1            103 erfolg           erfolg            
+##  8 1427334496           1            104 spiele-stream    spiele-streamer   
+##  9 1427334496           1            105 milliardenschwer milliardenschwerer
+## 10 1427334496           1            106 werben           werben            
+## # ... with 2,487 more rows
+```
+
+---
+
+# Using the MediaCloud API
+
+Let's compare that to [one of the original stories](https://www.spiegel.de/netzwelt/netzpolitik/medienstaatsvertrag-fuer-youtube-und-co-die-geplanten-aenderungen-a-1292530.html#ref=rss):
+
+
+```r
+dplyr::filter(tidy_matrix, stories_id == 1427334496)
+```
+
+```
+## # A tibble: 312 x 5
+##    stories_id word_counts word_counts_id stem             full              
+##    &lt;chr&gt;            &lt;int&gt;          &lt;dbl&gt; &lt;chr&gt;            &lt;chr&gt;             
+##  1 1427334496           1              0 inhalteanbiet    inhalteanbieter   
+##  2 1427334496           1              1 ad               ad                
+##  3 1427334496           1             10 offenlegen       offenlegen        
+##  4 1427334496           1            100 antworten        antworten         
+##  5 1427334496           1            101 angeh            angehe            
+##  6 1427334496           1            102 pflicht          pflicht           
+##  7 1427334496           1            103 erfolg           erfolg            
+##  8 1427334496           1            104 spiele-stream    spiele-streamer   
+##  9 1427334496           1            105 milliardenschwer milliardenschwerer
+## 10 1427334496           1            106 werben           werben            
+## # ... with 302 more rows
+```
+---
+
+class: middle
+
+# News databases
+
+---
+
+# News databases
+
+(Commercial) News databases aggregate content from a variety of news sources. The most relevant for news are:
+
+- [LexisNexis](https://www.lexisnexis.de/loesungen/research/akademische-recherche-nexis-uni): You should be able to access *NexisUni* through the [university library](https://rzblx10.uni-regensburg.de/dbinfo/detail.php?bib_id=ubko&amp;colors=&amp;ocolors=&amp;lett=fs&amp;tid=0&amp;titel_id=1670)
+- [Dow Jones Factiva](https://professional.dowjones.com/factiva/): Faculty access through [Pollux FID](https://www.pollux-fid.de/)
+
+They provide the probably easiest way to obtain full texts from varios news sources. However, text output formats are usually unstructured and thus require additional parsing. Furthmore, batch download can be a bit cumbersome (manual selection of texts, limited number of texts per download).
+
+---
+
+# Parsing text in R
+
+Extracting text from a website just like we did before is a special case of parsing any kind of text into a structured format. However, regular text documents often do not provide anchors, tags or other structured elements we can use to extract the text we want and are thus often more complicated to parse. Some helpers:
+
+- The [`textreadr`](https://cran.r-project.org/web/packages/textreadr/) package provides functions to load many different text formats into R, including several proprietary formats (e.g., `.docx`)
+- The [`stringr`](https://stringr.tidyverse.org/) package provides tidyverse-style functions for parsing and manipulating text data, for example pattern detection, matching and extraction.
+
+--
+
+When parsing text files, at some point you probably need a way to formally express how to search for specific patterns. That's what Regex (*reg*ular *ex*pressions) are for. Some good ressources:
+
+- Learn, build, and test regex on [RegExr](https://regexr.com/)
+- Verbalize Regex with [RVerbalExpressions](https://github.com/VerbalExpressions/RVerbalExpressions)
+- Go full nerd with [regex crosswords](https://regexcrossword.com/)
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+Thankfully, parser package exist for several databases. Let's import some text from NexisUni with [`LexisNexisTools`](https://github.com/JBGruber/LexisNexisTools).
+
+
+```r
+install.packages("LexisNexisTools")
+```
+
+--
+
+The easiest way to import multiple texts at once is to use the bulk download as single file (`.docx`) function on NexisUni. We can then import all texts at once using `lnt_read()`
+
+
+```r
+library(LexisNexisTools)
+texts &lt;- lnt_read("nexis_files.docx")
+```
+
+
+```
+## LexisNexisTools Version 0.3.4
+```
+
+```
+## Creating LNToutput from 1 file...
+```
+
+```
+## 	...files loaded [0.091 secs]
+```
+
+```
+## 	...articles split [0.12 secs]
+```
+
+```
+## 	...lengths extracted [0.12 secs]
+```
+
+```
+## 	...headlines extracted [0.13 secs]
+```
+
+```
+## 	...newspapers extracted [0.13 secs]
+```
+
+```
+## 	...dates extracted [0.15 secs]
+```
+
+```
+## 	...authors extracted [0.15 secs]
+```
+
+```
+## 	...sections extracted [0.16 secs]
+```
+
+```
+## 	...editions extracted [0.16 secs]
+```
+
+```
+## Warning in lnt_asDate(date.v, ...): More than one language was detected. The
+## most likely one was chosen (German 87%)
+```
+
+```
+## 	...dates converted [0.17 secs]
+```
+
+```
+## 	...metadata extracted [0.17 secs]
+```
+
+```
+## 	...article texts extracted [0.17 secs]
+```
+
+```
+## 	...superfluous whitespace removed [0.18 secs]
+```
+
+```
+## Elapsed time: 0.18 secs
+```
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+The result contains three dataframes, 1) meta information:
+
+
+```r
+texts@meta
+```
+
+```
+## # A tibble: 100 x 10
+##       ID Source_File Newspaper Date       Length Section Author Edition Headline
+##    &lt;int&gt; &lt;chr&gt;       &lt;chr&gt;     &lt;date&gt;     &lt;chr&gt;  &lt;chr&gt;   &lt;chr&gt;  &lt;lgl&gt;   &lt;chr&gt;   
+##  1     1 temp/nexis~ ZEIT-onl~ 2019-12-05 389 w~ Medien~ Johan~ NA      Ministe~
+##  2     2 temp/nexis~ Newstex ~ NA         2233 ~ &lt;NA&gt;    Chris~ NA      Der neu~
+##  3     3 temp/nexis~ taz, die~ 2020-10-30 763 w~ MEDIEN~ Peter~ NA      Bitte n~
+##  4     4 temp/nexis~ taz, die~ 2006-11-09 386 w~ Nord A~ MARCO~ NA      Nord-Me~
+##  5     5 temp/nexis~ Horizont  2019-10-30 513 w~ THEMA ~ Hein,~ NA      Regeln ~
+##  6     6 temp/nexis~ dpa-AFX ~ 2020-10-28 235 w~ &lt;NA&gt;    &lt;NA&gt;   NA      Weg für~
+##  7     7 temp/nexis~ Internet~ 2020-01-13 813 w~ MEINUN~ &lt;NA&gt;   NA      Kein sm~
+##  8     8 temp/nexis~ Computer~ NA         1130 ~ SOCIAL~ [dal]  NA      MEDIENS~
+##  9     9 temp/nexis~ dpa-AFX ~ 2020-04-27 542 w~ &lt;NA&gt;    &lt;NA&gt;   NA      ROUNDUP~
+## 10    10 temp/nexis~ dpa-AFX ~ 2020-11-06 198 w~ &lt;NA&gt;    &lt;NA&gt;   NA      Regeln ~
+## # ... with 90 more rows, and 1 more variable: Graphic &lt;lgl&gt;
+```
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+The result contains three dataframes, 2) all articles:
+
+
+```r
+texts@articles
+```
+
+```
+## # A tibble: 100 x 2
+##       ID Article                                                                
+##    &lt;int&gt; &lt;chr&gt;                                                                  
+##  1     1 " Sean Gallup  BERLIN, GERMANY - MAY 28: In this photo illustration a ~
+##  2     2 "Mar 04, 2020( Wilde Beuger Solmecke Lawyers: http://www.wbs-law.de De~
+##  3     3 "Von Peter Weissenburger Der Medienstaatsvertrag regelt künftig die Re~
+##  4     4 "Grundsätzlich sind alle dafür, doch der Teufel liegt im Detail. Weil ~
+##  5     5 "Veranstaltung: Medientage München München Deutschland Wenn alles glat~
+##  6     6 "SCHWERIN (dpa-AFX) - Der neue Medienstaatsvertrag in Deutschland mit ~
+##  7     7 "Nun ist der Medienstaatsvertrag also beschlossen. Doch erst bei genau~
+##  8     8 "Statt zu Hause nach Feierabend einen TV-Sender einzuschalten, schauen~
+##  9     9 "(neu: im letzten Absatz - wegen Corona-Krise keine Sitzung, sondern U~
+## 10    10 "MAINZ (dpa-AFX) - Der neue Medienstaatsvertrag in Deutschland mit Reg~
+## # ... with 90 more rows
+```
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+The result contains three dataframes, 3) all paragraphs of the articles separately:
+
+
+```r
+texts@paragraphs
+```
+
+```
+## # A tibble: 736 x 3
+##    Art_ID Par_ID Paragraph                                                      
+##     &lt;int&gt;  &lt;int&gt; &lt;chr&gt;                                                          
+##  1      1      1 " Sean Gallup"                                                 
+##  2      1      2 " BERLIN, GERMANY - MAY 28: In this photo illustration a young~
+##  3      1      3 "Der seit 1991 geltende Rundfunkstaatsvertrag soll durch einen~
+##  4      1      4 "Hintergrund des neuen Vertrags ist der digitale Wandel. Der S~
+##  5      1      5 "Mit dem Beschluss tritt der Medienstaatsvertrag noch nicht in~
+##  6      1      6 "In dem Medienstaatsvertrag geht es nicht um die Höhe des Rund~
+##  7      2      7 "Mar 04, 2020( Wilde Beuger Solmecke Lawyers: http://www.wbs-l~
+##  8      2      8 "Zustzlich sind auch Internet-Suchmaschinen, Streaming-Anbiete~
+##  9      3      9 "Von Peter Weissenburger"                                      
+## 10      3     10 "Der Medienstaatsvertrag regelt künftig die Rechte und Pflicht~
+## # ... with 726 more rows
+```
+
+---
+
+# Example: NexisUni with `LexisNexisTools`
+
+**Exercise 3: NexisUni** 
+
+Download German-language news articles about "Dogecoin" published during the last 7 days.
+
+&lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
+
+---
+
+class: middle
+
+# Exercise solutions
+
+---
+
+# Exercise solutions
+
+Exercise 1:
+
+
+```r
+scrape_spon &lt;- function(url) {
+  # Read URL
+  article &lt;- read_html(url)
+  
+  # Extract headline(s)
+  hl &lt;- article %&gt;% 
+    html_elements("h2") %&gt;% 
+    html_text(trim = TRUE)
+
+  # Extract publication date
+  date &lt;- article %&gt;% 
+    html_elements("time") %&gt;% 
+    html_text()
+
+  # Extract article body
+  body &lt;- article %&gt;% 
+    html_elements(".word-wrap p") %&gt;% 
+    html_text()
+
+  return(list(headline = hl, date = date, body = body))
+}
+```
+
+---
+
+# Exercise solutions
+
+**Exercise 1**:
+
+Apply our new function:
+
+
+```r
+article_url &lt;- "https://www.spiegel.de/international/europe/investors-wanted-to-make-eur6-1-billion-with-super-league-a-11a7128b-222c-4db3-b17a-d7e234fb8d5c"
+res &lt;- scrape_spon(article_url)
+```
+
+---
+
+# Exercise solutions
+
+**Exercise 2**:
+
+First, let's introduce to the SpOn server:
+
+
+```r
+spon_session &lt;- bow("https://www.spiegel.de/international/")
+```
+
+--
+
+Next, get the contents of the international portal homepage:
+
+
+```r
+homepage &lt;- spon_session %&gt;% 
+  scrape()
+```
+
+--
+
+Then, extract the first three links (or all article links and select only the first three):
+
+
+```r
+article_links &lt;- homepage %&gt;% 
+  html_elements("article h2 a") %&gt;% 
+  html_attr("href")
+
+first_three &lt;- article_links[1:3]
+```
+
+---
+
+# Exercise solutions
+
+Let's update the function:
+
+
+```r
+scrape_spon_new &lt;- function(path, session) {
+  # Update path 
+  article &lt;- nod(session, path) %&gt;% 
+    scrape()
+  
+  hl &lt;- article %&gt;% 
+    html_elements("h2") %&gt;% 
+    html_text(trim = TRUE)
+
+  date &lt;- article %&gt;% 
+    html_elements("time") %&gt;% 
+    html_text()
+
+  body &lt;- article %&gt;% 
+    html_elements(".word-wrap p") %&gt;% 
+    html_text() %&gt;% 
+    stringr::str_c(collapse = "\n") # Collapse article content to one string
+  
+  return(list(headline = hl, date = date, body = body))
+}
+```
+
+---
+
+# Exercise solutions
+
+We can now iterate over the article links, for example using `purrr`'s `map_dfr()` function to automatically generate a tibble with all article information:
+
+
+```r
+purrr::map_dfr(first_three, scrape_spon_new, spon_session)
+```
+
+```
+## # A tibble: 3 x 3
+##   headline                           date        body                           
+##   &lt;chr&gt;                              &lt;chr&gt;       &lt;chr&gt;                          
+## 1 "Interview with Afghanistan Presi~ 14.05.2021~ "This interview with Ghani too~
+## 2 "Escalation in the Middle East\n\~ 14.05.2021~ "The streets of Lod smell like~
+## 3 "Voices from Gaza\n\n\"No Place H~ 14.05.2021~ "On Tuesday evening of this we~
+```
+
+---
+
+# Exercise solutions
+
+**Exercise 3**:
+
+On NexisUni, search for "Dogecoin" in news and set filters to Language = German and Timespan = Last 7 Days. Download in bulk and import with `lnt_read()` - done!
+
+---
+
+class: middle
+# Thanks
+
+Credits:
+- Slides created with [`xaringan`](https://github.com/yihui/xaringan)
+- Title image by [Digital Buggu / Pexels](https://www.pexels.com/de-de/foto/fotografie-mit-flachem-fokus-von-zeitschriften-167538/)
+- Coding cat gif by [Memecandy/Giphy](https://giphy.com/gifs/memecandy-LmNwrBhejkK9EFP504)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
