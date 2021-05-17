@@ -141,7 +141,7 @@ Two useful helpers for element identification/selection:
 
 # Web scraping with `rvest`
 
-While we could just use `HTTR::GET()` and base text parsing functions for web scraping, the package `rvest` simplifies the whole process:
+While we could just use `httr::GET()` and base text parsing functions for web scraping, the package `rvest` simplifies the whole process:
 
 ```{r, eval=FALSE}
 install.packages("rvest")
@@ -156,7 +156,7 @@ library(rvest)
 The main functions are:
 
 - Request the HTML file with `read_html()`
-- Select elements with `html_nodes()`
+- Select elements with `html_elements()`
 - Extract relevant information with `html_text()` (plain text), `html_attr()` (element attributes) and/or `html_table()` (convenience function for tables)
 
 ---
@@ -255,7 +255,7 @@ As already discussed last time, systematic web scraping can run into some legal 
 
 --
 
-The package `polite` simplifies the above practices by automatically reading out the `robots.txt` and adhering to the standards defined within. Main functions:
+The package [`polite`](https://dmi3kno.github.io/polite/) simplifies the above practices by automatically reading out the `robots.txt` and adhering to the standards defined within. Main functions:
 
 - `bow()` to a web server, introduce yourself and read out `robots.txt`
 - `nod()` to update the current path on the same server (no need to bow multiple times to the same server)
