@@ -1018,6 +1018,37 @@ dplyr::filter(tidy_matrix, stories_id == 1427334496)
 ```
 ---
 
+# Using the MediaCloud API
+
+For your convenience, here's a wrapper package that simplifies the steps of the last few slides: https://github.com/joon-e/mediacloud
+
+
+```r
+#install.packages("remotes")
+remotes::install_github("joon-e/mediacloud")
+```
+
+This will let you search media, stories, and obtain word matrices:
+
+
+```r
+library(mediacloud)
+search_stories(title = "dogecoin", media_id = c(19831, 38697), after_date = "2021-05-01")
+```
+
+```
+## # A tibble: 3 x 9
+##   stories_id media_id publish_date        title      url        processed_stori~
+##        &lt;int&gt;    &lt;int&gt; &lt;dttm&gt;              &lt;chr&gt;      &lt;chr&gt;                 &lt;dbl&gt;
+## 1 1922328226    19831 2021-05-05 13:35:13 Dogecoin:~ https://w~       2328683297
+## 2 1925893908    38697 2021-05-09 07:10:42 Dogecoin:~ https://w~       2331981923
+## 3 1926994811    19831 2021-05-10 12:44:34 Elon Musk~ https://w~       2333054504
+## # ... with 3 more variables: media_name &lt;chr&gt;, collect_date &lt;dttm&gt;,
+## #   tags &lt;named list&gt;
+```
+
+---
+
 class: middle
 
 # News databases
@@ -1081,7 +1112,7 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...files loaded [0.091 secs]
+## 	...files loaded [0.088 secs]
 ```
 
 ```
@@ -1089,11 +1120,11 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...lengths extracted [0.13 secs]
+## 	...lengths extracted [0.12 secs]
 ```
 
 ```
-## 	...headlines extracted [0.13 secs]
+## 	...headlines extracted [0.12 secs]
 ```
 
 ```
@@ -1101,7 +1132,7 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...dates extracted [0.15 secs]
+## 	...dates extracted [0.14 secs]
 ```
 
 ```
@@ -1109,11 +1140,11 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...sections extracted [0.16 secs]
+## 	...sections extracted [0.15 secs]
 ```
 
 ```
-## 	...editions extracted [0.16 secs]
+## 	...editions extracted [0.15 secs]
 ```
 
 ```
@@ -1122,11 +1153,11 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...dates converted [0.17 secs]
+## 	...dates converted [0.16 secs]
 ```
 
 ```
-## 	...metadata extracted [0.17 secs]
+## 	...metadata extracted [0.16 secs]
 ```
 
 ```
@@ -1134,11 +1165,11 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...superfluous whitespace removed [0.18 secs]
+## 	...superfluous whitespace removed [0.17 secs]
 ```
 
 ```
-## Elapsed time: 0.18 secs
+## Elapsed time: 0.17 secs
 ```
 
 ---

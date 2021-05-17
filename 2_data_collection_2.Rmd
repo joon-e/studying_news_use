@@ -586,6 +586,24 @@ dplyr::filter(tidy_matrix, stories_id == 1427334496)
 ```
 ---
 
+# Using the MediaCloud API
+
+For your convenience, here's a wrapper package that simplifies the steps of the last few slides: https://github.com/joon-e/mediacloud
+
+```{r eval=FALSE}
+#install.packages("remotes")
+remotes::install_github("joon-e/mediacloud")
+```
+
+This will let you search media, stories, and obtain word matrices:
+
+```{r}
+library(mediacloud)
+search_stories(title = "dogecoin", media_id = c(19831, 38697), after_date = "2021-05-01")
+```
+
+---
+
 class: middle
 
 # News databases
