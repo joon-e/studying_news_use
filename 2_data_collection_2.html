@@ -633,7 +633,7 @@ Several news outlets provide their own content APIs, including:
 
 --
 
-There are also overarching APIs dedicating to searching news stories, for example:
+There are also overarching APIs dedicated to searching news stories, for example:
 
 - [MediaCloud](https://mediacloud.org/)
 - [News API](https://newsapi.org/)
@@ -690,7 +690,7 @@ The API offers lots of different endpoints. Some important endpoints for collect
 
 # Using the MediaCloud API
 
-Let's try to obtain some Spiegel Online stories. We first need to now SpOn's MediaCloud id, so we may want so search the `api/v2/media/list/` endpoint. For all API calls, we authenticate by passing our API key to the parameter `key`.
+Let's try to obtain some Spiegel Online stories. We first need to know SpOn's MediaCloud id, so we may want so search the `api/v2/media/list/` endpoint. For all API calls, we authenticate by passing our API key to the parameter `key`.
 
 
 ```r
@@ -848,7 +848,7 @@ res &lt;- GET(wm_url)
 
 --
 
-The result contains to lists, `word_list` and `word_matrix`:
+The result contains two lists, `word_list` and `word_matrix`:
 
 
 ```r
@@ -871,7 +871,7 @@ From the MediaCloud API documentation:
 
 # Using the MediaCloud API
 
-Unpacking depends on how you prefer how to handle nested lists. To get to a document-feature matrix in [https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html](Tidytext) style, we may first separate both lists:
+Unpacking depends on how you prefer handling nested lists. To get to a document-feature matrix in [Tidytext](https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html) style, we may first separate both lists:
 
 
 ```r
@@ -1031,7 +1031,7 @@ class: middle
 - [LexisNexis](https://www.lexisnexis.de/loesungen/research/akademische-recherche-nexis-uni): You should be able to access *NexisUni* through the [university library](https://rzblx10.uni-regensburg.de/dbinfo/detail.php?bib_id=ubko&amp;colors=&amp;ocolors=&amp;lett=fs&amp;tid=0&amp;titel_id=1670)
 - [Dow Jones Factiva](https://professional.dowjones.com/factiva/): Faculty access through [Pollux FID](https://www.pollux-fid.de/)
 
-They provide the probably easiest way to obtain full texts from varios news sources. However, text output formats are usually unstructured and thus require additional parsing. Furthmore, batch download can be a bit cumbersome (manual selection of texts, limited number of texts per download).
+They provide the probably easiest way to obtain full texts from various news sources. However, text output formats are usually unstructured and thus require additional parsing. Furthmore, batch download can be a bit cumbersome (manual selection of texts, limited number of texts per download).
 
 ---
 
@@ -1054,7 +1054,7 @@ When parsing text files, at some point you probably need a way to formally expre
 
 # Example: NexisUni with `LexisNexisTools`
 
-Thankfully, parser package exist for several databases. Let's import some text from NexisUni with [`LexisNexisTools`](https://github.com/JBGruber/LexisNexisTools).
+Thankfully, parser packages exist for several databases. Let's import some text from NexisUni with [`LexisNexisTools`](https://github.com/JBGruber/LexisNexisTools).
 
 
 ```r
@@ -1089,7 +1089,7 @@ texts &lt;- lnt_read("nexis_files.docx")
 ```
 
 ```
-## 	...lengths extracted [0.12 secs]
+## 	...lengths extracted [0.13 secs]
 ```
 
 ```
@@ -1244,7 +1244,7 @@ class: middle
 
 # Exercise solutions
 
-Exercise 1:
+**Exercise 1:**
 
 
 ```r
