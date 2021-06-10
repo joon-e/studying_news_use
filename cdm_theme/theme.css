@@ -133,3 +133,10 @@ a:hover {
     background-position: 98% 20px, 100% 50%;
     background-size: 200px, 55%;    
 }
+
+.alphabet {
+    background-image: url('logo.svg'), url('../img/3/alphabet.jpg');
+    background-repeat: no-repeat, no-repeat;
+    background-position: 98% 20px, 100% 50%;
+    background-size: 200px, 55%;    
+}

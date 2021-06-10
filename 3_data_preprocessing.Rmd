@@ -1,0 +1,467 @@
+---
+title: "Studying News Use with Computational Methods"
+subtitle: "Text Preprocessing in R"
+author: "Julian Unkel"
+institute: "University of Konstanz"
+date: "2021/06/14"
+output:
+  xaringan::moon_reader:
+    css: [default, "cdm_theme/theme.css", "cdm_theme/theme_fonts.css"]
+    lib_dir: libs
+    nature:
+      ratio: "16:9"
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      titleSlideClass: ["left", "bottom", "title-slide", "alphabet"]
+---
+
+# Agenda
+
+.pull-left[...
+]
+
+--
+
+.pull-right[Our agenda today:
+
+- Text representation in R
+  - Terminology
+  - The `tidytext` approach
+  - The `quanteda` approach
+- Basic text preprocessing
+  - Tokenization
+  - Document-feature matrices
+  - Feature reduction: Trimming, stemming, stopword removal
+- Advanced text preprocessing
+  - Lemmatization
+  - Part-of-speech tagging
+  - Named entity recognition
+  - Weighting
+  - Word embeddings
+]
+
+---
+class: middle
+
+# Terminology
+
+---
+
+# Terminology
+
+In automated content analysis, we are analysing **corpora** of **documents**:
+
+- **Document**: A single item of text as the basic unit of analysis, for example an article, a social media post, or a speech transcript
+- **Corpus**: A structured collection of documents
+
+--
+
+Documents consist of a text string and, optionally, additional meta information:
+
+- **Feature**: Any document property or characteristic used in the models. Think of features as predictors or explanatory/independent variables. For example, counts of individual words, but also any kind of document meta information may be used as a feature.
+- **Token**: Any meaningful unit (sub-string) of a text (string). For example, we may _tokenize_ a document into words, sentences, letters, etc.
+- **n-gram**: Any contiguous sequence of tokens. Thus, 1-grams (*unigrams*) may be single words ("It's, "peanut", "butter", "jelly", "time"), 2-grams (*bigrams*) sequences of two words ("It's peanut" "peanut butter", "butter jelly", "jelly time"), etc.
+
+---
+
+# The `tidytext` approach
+
+The [`tidytext`](https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html) package was created as an Tidyverse extension to apply tidy data principles to textual data and text analysis. Thus, a corpus is represented as a tibble, with documents as rows and document variables as columns. 
+
+```{r eval=FALSE}
+install.packages("tidytext")
+library(tidytext)
+```
+
+```{r echo=FALSE}
+library(tidyverse)
+library(tidytext)
+```
+
+--
+
+The sample data `guardian_sample_100.rds` on ILIAS contains a sample of 100 each articles published by The Guardian in 2020 in the news and sports section, respectively, including several additional variables (e.g., publication date) already in this format. Load it now:
+
+```{r eval=FALSE}
+guardian_tibble <- readRDS("data/guardian_sample_100.rds")
+```
+
+```{r echo=FALSE}
+guardian_tibble <- readRDS("temp/guardian_sample_100.rds")
+```
+
+---
+
+# The `tidytext` approach
+
+```{r}
+guardian_tibble
+```
+
+---
+
+# The `quanteda` approach
+
+The most prominent package for automated content analysis in R is called [`quanteda`](https://quanteda.io/) (*Qu*antitative *An*alysis of *Te*xtual *Da*ta):
+
+```{r eval=FALSE}
+install.packages("quanteda")
+library(quanteda)
+```
+
+```{r echo=FALSE, message=FALSE}
+library(quanteda)
+```
+
+--
+
+`quanteda` uses it's own data type called `corpus` to represent text corpora. The `corpus()` function can be used to create corpora from a variety of other data types, including dataframes/tibbles.
+
+If creating a corpus from a dataframe/tibble, use the `docid_field` and `text_field` arguments to select id and text variables, respectively:
+
+```{r}
+guardian_corpus <- corpus(guardian_tibble, docid_field = "id", text_field = "body")
+```
+
+---
+
+# The `quanteda` approach
+
+```{r}
+guardian_corpus
+```
+
+---
+
+# The `quanteda` approach
+
+Use `docvars()` to access the document variables:
+
+```{r}
+as_tibble(docvars(guardian_corpus))
+```
+
+---
+
+# Converting between `tidytext` and `quanteda`
+
+Both packages work fine together. Use `tidytext::tidy()` at any time to convert `quanteda` objects to `tidytext`-style tibbles:
+
+```{r}
+tidy(guardian_corpus)
+```
+
+---
+class: middle
+
+# Basic text preprocessing
+
+---
+
+# Tokenization
+
+**Tokenization** describes the process of splitting texts into individual tokens, which can then be used as features in a text analysis model. In quantitative text analysis, we usually want to split into single words, which is thus the default option for most tokenizers.
+
+--
+
+In `tidytext`, the function is called `unnest_tokens()`. This creates a column with the single tokens and (by default) removes the text input column (in our case, `body`):
+
+```{r}
+guardian_tibble_tokenized <- guardian_tibble %>% 
+  unnest_tokens(word, body) 
+```
+
+The resulting tibble now has one row per word. Note that by default, this removes punctuation and converts all words to lowercase.
+
+---
+
+# Tokenization
+
+```{r}
+guardian_tibble_tokenized
+```
+
+---
+
+# Tokenization
+
+In `quanteda`, we can use the `tokens()` function on our corpus object:
+
+```{r}
+guardian_tokens <- guardian_corpus %>% 
+  tokens()
+guardian_tokens
+```
+
+---
+
+# Tokenization
+
+Note that `tokens()` by default does neither convert to lowercase nor removes punctuations. To get to the same result as with `tidytext`, we have to be more explicit:
+
+```{r}
+guardian_tokens <- guardian_corpus %>% 
+  tokens(remove_punct = TRUE) %>% 
+  tokens_tolower()
+
+guardian_tokens
+```
+
+---
+
+# Tokenization
+
+Tokenization options depend on the project and research interest at hand. Both functions also allow you to use other tokenizers, for example from the `tokenizers` package. For example, when tokenizing tweets you may use special tokenizers that preserve hashtags, mentions, and URLs.
+
+--
+
+In practice, I find the following steps to be a good default options:
+
+- Converting to lowercase
+- Removing punctuation, numbers, symbols, URLs, and separators
+
+```{r}
+guardian_tokens <- guardian_corpus %>% 
+  tokens(remove_punct = TRUE, remove_numbers = TRUE,
+         remove_symbols = TRUE, remove_url = TRUE,
+         remove_separators = TRUE) %>% 
+  tokens_tolower()
+```
+
+--
+
+In the follwing, we will continue mainly with `quanteda`, but will return to `tidytext` later on.
+
+---
+
+# Document-feature matrices
+
+The typical input for most quantitative text analysis methods is called a **DFM** (*D*ocument-*f*eature *m*atrix), with documents in rows and features in columns. Most often, we will use token (i.e., word) counts as features. 
+
+--
+
+We can construct a DFM from our tokens object with `dfm()`:
+
+```{r}
+guardian_dfm <- guardian_tokens %>% 
+  dfm()
+```
+
+---
+
+# Document-feature matrices
+
+```{r}
+guardian_dfm
+```
+
+--
+
+- In total, our sample contains 16,489 different words (thus: 16,489 features and the same number of columns)
+- The DFM's *sparsity* is the proportion of cells with a value of zero.
+- Note that our docvars are still accessible via `docvars()`. As such, we could simply column-bind them to the matrix to use (some of) these variables as additional features, which may be particularly useful for (supervised) classification methods. However, in the following sessions, we will mainly work with word features only.
+
+---
+
+# Feature reduction
+
+Even with as little as 200 articles, we have quite a large matrix with already several million cells. This can easily grow to several hundred million cells even with medium-sized corpora. This can both increase the computational load and make it harder to find meaningful, predictive features. 
+
+--
+
+It is thus usually a good idea to reduce the dimensionality of the DFM by removing unnecessary features. The three most common steps are:
+
+- *Trimming* by removing very uncommon and/or very common features because they usually have little to no discriminative or predictive value
+- *Stemming* words to their word stem, so for example singular and plural forms of the same word are represented in the same feature
+- Removing common functional words (*stopwords*) like conjunctions and articles because, again, they usually hhave little to no discriminative or predictive value
+
+---
+
+# Feature reduction: Trimming
+
+Use `dfm_trim()` to trim features from a DFM. You can trim both by term frequency (how often does the feature appear across all documents) and document frequency (in how many documents does the feature appear), and both by absolute and relative values (among others).
+
+--
+
+For example, the following code removes all features that appear less than 5 times across all documents and all features that appear in more than 75% of all documents:
+
+```{r}
+guardian_dfm %>% 
+  dfm_trim(min_termfreq = 5, termfreq_type = "count",
+           max_docfreq = 0.75, docfreq_type = "prop")
+```
+
+---
+
+# Feature reduction: Stemming
+
+Use `dfm_wordstem()` to conduct word stemming. This uses the [Snowball](https://snowballstem.org/) stemming algorithm, which is currently available for 26 languages. Use the `language` argument to set the language (default: `"english"`), and `SnowballC::getStemLanguages()` to get a list of available languages.
+
+--
+
+```{r}
+guardian_dfm %>% 
+  dfm_wordstem(language = "english")
+```
+
+For example, note `coalit`, which has replaced `coalition's` (and all other forms of `coalition`) and now has count of 9. 
+
+---
+
+# Feature reduction: Stopword removal
+
+Use `dfm_remove()` to remove any features given in a character vector from the DFM. Stopword removal is thus pretty much a form of trimming by providing a list of features to remove. 
+
+`quanteda` (via the `stopwords` package) provides several lists of stopwords for various languages. For example, the default list of english stopwords, also from the Snowball project, contains 175 stopwords:
+
+```{r}
+stopwords("english")
+```
+
+---
+
+# Feature reduction: Stopword removal
+
+For example, note that `the` is gone (and that the sparsity of the matrix actually increased) after stopword removal:
+
+```{r}
+guardian_dfm %>% 
+  dfm_remove(stopwords("english"))
+```
+
+---
+
+# Feature reduction
+
+Some general tips on feature reduction:
+
+- There is no single best way that applies to all projects. 
+- It is often advisable to try out different feature reduction steps and check their effects on the model outcome. 
+- However, a good, robust text model should also be somewhat resistant to small changes in feature reductions.
+- Order matters! For example, when using both stemming and trimming, stem first, then trim.
+- Stemming and stopword removal can also be applied to token objects before creating the DFM (with `tokens_wordstem()` and `tokens_remove()`, respectively).
+
+---
+
+# Preprocessing
+
+**Exercise 1: Preprocessing**
+
+`aoc_tweets.csv` (on ILIAS) contains 783 tweets by Alexandria Ocasio-Cortez made in 2021, as obtained by Twitter's Academic API. 
+
+- Load the tweets into R and create a quanteda corpus object
+- Tokenize, convert to lowercase and remove punctuation, emojis, numbers, and URLs, but keep hashtags and mentions
+- Remove english stopwords and the retweet indicator "RT"
+- Bonus points: Check the DFM and the most common features (`topfeatures()`) to identify further problematic features (and propose solutions)
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+class: middle
+
+# Exercise solutions
+
+---
+
+# Exercise solutions
+
+**Exercise 1: Preprocessing**
+
+We can use `read_csv()` (or the base R equivalent `read.csv`) to read in the CSV file:
+
+```{r eval=FALSE}
+aoc_tweets <- read_csv("data/aoc_tweets.csv",
+                       col_types = c(id = col_character()))
+```
+
+```{r echo=FALSE}
+aoc_tweets <- read_csv("temp/aoc_tweets.csv",
+                       col_types = list(id = col_character()))
+```
+
+Note that when using Twitter data (and other social media data), it is advisable to explicitly read numeric IDs as character, as longer numeric IDs may be too long for double precision.
+
+---
+
+# Exercise solutions
+
+We can use the Tweet `id` for the document id; the tweet text is stored in the `text` column:
+
+```{r}
+aoc_corpus <- corpus(aoc_tweets, docid_field = "id", text_field = "text")
+aoc_corpus
+```
+
+---
+
+# Exercise solutions
+
+Hashtags and mentions are preserved by default. Emojis are symbols and are thus removed with `remove_symbols = TRUE`:
+
+```{r}
+aoc_tokens <- aoc_corpus %>% 
+  tokens(remove_punct = TRUE, 
+         remove_symbols = TRUE,
+         remove_numbers = TRUE,
+         remove_url = TRUE) %>% 
+  tokens_tolower()
+```
+
+---
+
+# Exercise solutions
+
+Remember that we lowercased all features, thus the retweet indicator `"RT"` can be removed with `"rt"`:
+
+```{r}
+aoc_dfm <- aoc_tokens %>% 
+  dfm() %>% 
+  dfm_remove(c("rt", stopwords("english")))
+aoc_dfm
+```
+
+---
+
+# Exercise solutions
+
+In the DFM, we can already see `"u.s"`, which is the result from tokenizing `"U.S."`. We may want to change this sequence of characters (`"U.S."`) to `"US"` beforehand, for example with `stringr::str_replace_all()`:
+
+```{r eval=FALSE}
+aoc_tweets %>% 
+  mutate(text = str_replace_all(text, "U\\.S\\.", "US"))
+```
+
+However, this would also create some ambiguity with `"us"`.
+
+---
+
+# Exercise solutions
+
+Let's look at the top features for further problems:
+
+```{r}
+topfeatures(aoc_dfm)
+```
+
+- `"amp"` is the remains of the HTML entity for the ampersand sign, `&amp;`. This (changing some special characters to their HTML entity) is one annoying quirk of the Twitter API. We may just remove this "by hand" (`dfm_remove("amp")`), or again, remove this beforehand with `stringr::str_replace_all()`. We could also look for further HTML entities with [Regex](https://stackoverflow.com/questions/26127775/remove-html-entities-and-extract-text-content-using-regex).
+- `"w"` is the remains of `"w/"` (abbreviation for "with"). We may want to remove this by hand, or, more conveniently, use `dfm_select(min_nchar = 2)` to remove all one-letter words from our DFM.
+
+---
+
+# Exercise solutions
+
+**Exercise 3**:
+
+On NexisUni, search for "Dogecoin" in news and set filters to Language = German and Timespan = Last 7 Days. Download in bulk and import with `lnt_read()` - done!
+
+---
+
+class: middle
+# Thanks
+
+Credits:
+- Slides created with [`xaringan`](https://github.com/yihui/xaringan)
+- Title image by [Susan Holt Simpson / Unsplash](https://unsplash.com/photos/Rd01U0tPmQI)
+- Coding cat gif by [Memecandy/Giphy](https://giphy.com/gifs/memecandy-LmNwrBhejkK9EFP504)
