@@ -18,7 +18,9 @@ output:
 
 # Agenda
 
-.pull-left[...
+.pull-left[After having collected texts, we now need to bring them into a form with which statistical language models are able to work. In practice, this means reducing our text to features (i.e., predictor variables) used in statistical models represented by numbers.
+
+Such **preprocessing** steps includes ways to transform text in numbers, clean, edit and reduce the amount of features, and cast them into the data structures ready for text models.
 ]
 
 --
@@ -33,7 +35,7 @@ output:
   - Tokenization
   - Document-feature matrices
   - Feature reduction: Trimming, stemming, stopword removal
-- Advanced text preprocessing
+- Advanced text preprocessing & annotation
   - Lemmatization
   - Part-of-speech tagging
   - Named entity recognition
@@ -235,6 +237,28 @@ In the follwing, we will continue mainly with `quanteda`, but will return to `ti
 
 ---
 
+# Tokenization
+
+We can now also create various n-grams of choice by using `tokens_ngrams()` on our tokens object. For example, for bigrams only:
+
+```{r}
+guardian_tokens %>% 
+  tokens_ngrams(2)
+```
+
+---
+
+# Tokenization
+
+Unigrams, bigrams, and trigrams:
+
+```{r}
+guardian_tokens %>% 
+  tokens_ngrams(1:3)
+```
+
+---
+
 # Document-feature matrices
 
 The typical input for most quantitative text analysis methods is called a **DFM** (*D*ocument-*f*eature *m*atrix), with documents in rows and features in columns. Most often, we will use token (i.e., word) counts as features. 
@@ -344,18 +368,450 @@ Some general tips on feature reduction:
 
 ---
 
-# Preprocessing
+# Basic text preprocessing
 
 **Exercise 1: Preprocessing**
 
 `aoc_tweets.csv` (on ILIAS) contains 783 tweets by Alexandria Ocasio-Cortez made in 2021, as obtained by Twitter's Academic API. 
 
 - Load the tweets into R and create a quanteda corpus object
-- Tokenize, convert to lowercase and remove punctuation, emojis, numbers, and URLs, but keep hashtags and mentions
-- Remove english stopwords and the retweet indicator "RT"
+- Tokenize, convert to lowercase and remove punctuation, emojis, numbers, and URLs
+- Create a DFM, remove english stopwords, the retweet indicator "RT", #hashtags and @mentions (hint: look at the `?dfm_remove()` documentation).
 - Bonus points: Check the DFM and the most common features (`topfeatures()`) to identify further problematic features (and propose solutions)
 
 <center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+class: middle
+
+# Advanced text preprocessing & annotation
+
+---
+
+# Using `spacyr`
+
+More sophisticated preprocessing requires pre-trained language models. The Python module `spaCy` provides several pre-trained models for a variety of languages, capable of such tasks as lemmatization, part-of-speech tagging, and named entity recognition. 
+
+--
+
+We can make use of `spaCy`'s preprocessing pipelines with the R package `spacyr`, but this still needs `spaCy` (and the language models) to be installed:
+
+```{eval=FALSE}
+pip install spacy
+python -m spacy download en_core_web_sm
+```
+
+--
+
+After installing both `spaCy` and `spacyr`, we can then initialize the language models as follows:
+
+```{r message=FALSE}
+library(spacyr)
+spacy_initialize(model = "en_core_web_sm")
+```
+
+---
+
+# Lemmatization
+
+**Lemmatization**, stemming's fancy sibling, groups inflected word forms to their common dictionary form, lemma. This means that, unlike with stemming, also irregular forms of words can be grouped together (i.e., `"is"` and `"are"` are both lemmatized as `"be"`). However, lemmatization thus also needs to identify the word meaning in a sentence, and as such requires full text (and not just a bag of words).
+
+--
+
+With a pre-trained model, the process itself is quite simple. We use `spacyr`'s `spacy_parse()` function on a text corpus and set `lemma = TRUE`:
+
+```{r}
+guardian_lemma <- spacy_parse(guardian_corpus, lemma = TRUE,
+                              pos = FALSE, entity = FALSE)
+```
+
+---
+
+# Lemmatization
+
+```{r eval=FALSE}
+guardian_lemma
+```
+
+```{r echo=FALSE}
+as_tibble(guardian_lemma)
+```
+
+For example, note that `"is"` in line 10 has been correctly lemmatized to `"be"`.
+
+---
+
+# Lemmatization
+
+From here, we can continue with `quanteda` functions by converting the word list into a token object:
+
+```{r}
+as.tokens(guardian_lemma, use_lemma = TRUE)
+```
+
+---
+
+# Part-of-speech tagging
+
+**Part-of-speech tagging** (POS tagging) identifies the corresponding part of speech for each word, for example:
+
+- `NOUN`: noun
+- `VERB`: verb
+- `ADJ`: adjective
+- `PROPN`: proper noun
+
+etc.
+
+--
+
+POS tagging is more relevant for more linguistics-focused models, but may still be useful for statistical approaches as well, for example for disambiguation purposes. We can again use `spacy_parse()`, this time setting `pos = TRUE`:
+
+```{r}
+guardian_pos <- spacy_parse(guardian_corpus, lemma = FALSE,
+                            pos = TRUE, entity = FALSE)
+```
+
+---
+
+# Part-of-speech tagging
+
+```{r eval=FALSE}
+guardian_pos
+```
+
+```{r echo=FALSE}
+as_tibble(guardian_pos)
+```
+
+---
+
+# Named entity recognition
+
+Finally, we can use `spacyr` to extract named entities in a corpus. Named entities may include:
+
+- `ORG`: organisations
+- `PERSON`: persons
+- `NORP`: nationalities, religious or political groups
+- `GPE`: geo-political entities, i.e., countries, cities, states
+- `FAC`: facilities like buildings, airports, etc.
+
+and several more.
+
+--
+
+Again, we use `spacy_parse()`, this time setting `entity = TRUE`:
+
+```{r}
+guardian_ner <- spacy_parse(guardian_corpus, lemma = FALSE,
+                            pos = FALSE, entity = TRUE)
+```
+
+---
+
+# Named entity recognition
+
+```{r eval=FALSE}
+guardian_ner %>% 
+  filter(entity != "")
+```
+
+```{r echo=FALSE}
+as_tibble(guardian_ner) %>% 
+  filter(entity != "")
+```
+
+Note that `_B` identifies the beginning of an entity, `_I` an "inside" part of an entity.
+
+---
+
+# Using `spacyr`
+
+Running `spaCy` language models consumes lots of memory, so remember to shut down those background processes after all annotation has been completed:
+
+```{r}
+spacy_finalize()
+```
+
+---
+
+# Weighting
+
+Going back to DFM's and `quanteda`, we may improve model performance by weighting the features in the DFM. The general form to weight DFMs in `quanteda` is to use the function `dfm_weight()`. For example, to use the feature proportion per document instead of absolute frequencies, set `scheme = "prop"`:
+
+```{r}
+guardian_dfm %>% 
+  dfm_weight(scheme = "prop")
+```
+
+---
+
+# Weighting
+
+One common form of weighting is to use the **term frequency - inverse document frequency** (*tf-idf*) statistic. The tf-idf value increases with the number of times a word appears in a document, and is offset with the number of times the respective word appears in documents accross the whole corpus. As such, it seeks to reflect how important/distinctive a word is for a specific document.
+
+In `quanteda`, use `dfm_tfidf()` to apply the tf-idf weighting to a DFM object. For example, note that `"the"` has a value of 0 even though it is the most frequent word in the first document:
+
+```{r}
+guardian_dfm %>% 
+  dfm_tfidf()
+```
+
+---
+
+# Word embeddings
+
+With DFMs, we follow the bag-of-words model, that is, we choose to ignore word order and all semantical and syntactical relationships between words (and this actually works fine for most purposes). However, alternative ways of representing text as numbers exist that seek to preserve such connections between lexical units. 
+
+With **word embeddings** (also *word vectors*), we encode words in high-dimensional numeric vectors so that words that have little distance in vector space are more similar in meaning than words that have larger distances.
+
+There are complex, pre-trained word embedding models ready to use, such as [`word2vec`](https://cran.r-project.org/web/packages/word2vec/), but for demonstration purposes, we will create our own word embeddings. 
+
+The following steps are based on chapter 5 of the great book ["Supervised machine learning for text analysis in R"](https://smltar.com/embeddings.html) by Emil Hvitfeldt and Julia Silge.
+
+---
+
+# Word embeddings
+
+First, note that word embeddings are usually trained on a huge corpus of documents, which also makes them very computationally expensive. For demonstration purposes, let's use a larger sample of the Guardian corpus, containing 10,000 articles:
+
+```{r}
+guardian_larger <- readRDS("temp/guardian_sample_2020.rds")
+guardian_larger
+```
+
+---
+
+# Word embeddings
+
+These 10,000 articles consist of 7,824,081 words in total, and 117,188 unique words:
+
+```{r}
+guardian_larger_tokens <- guardian_larger %>% 
+    unnest_tokens(word, body)
+
+guardian_larger_tokens %>% 
+    count(word, sort = TRUE)
+```
+
+---
+
+# Word embeddings
+
+First, we nest all documents into their own tibbles, as we want to compute word associations based on their co-occurence within the same document. For example, the row of the first document now contains a nested tibble containing all 698 words as single rows of said document:
+
+```{r}
+guardian_nested <- guardian_larger_tokens %>% 
+    select(id, word) %>% 
+    nest(words = word)
+guardian_nested
+```
+
+---
+
+# Word embeddings
+
+One way to measure word associations is by looking at how often they appear together and how often they appear alone in predefined windows (i.e., sequences of `n` words). The *pointwise mutual information* (*PMI*) measures this association computing the logarithmn of the probability of finding two words together in a given window, and dividing this by the probability of finding each word alone. The higher the PMI, the more likely those two words appear together.
+
+--
+
+We need some additional packages to efficiently compute this measures for all two-word associations in a given window in our corpus:
+
+```{r}
+library(slider) # Creating sliding windows
+library(widyr)  # Wide-matrix processing
+library(furrr)  # Parallel computing
+```
+
+---
+
+# Word embeddings
+
+The [aforementioned book](https://smltar.com/embeddings.html#understand-word-embeddings-by-finding-them-yourself) provides a function to create word windows of a given size:
+
+```{r}
+slide_windows <- function(tbl, window_size) {
+    skipgrams <- slider::slide(
+        tbl, 
+        ~.x, 
+        .after = window_size - 1, 
+        .step = 1, 
+        .complete = TRUE
+    )
+    
+    safe_mutate <- safely(mutate)
+    
+    out <- map2(skipgrams,
+                1:length(skipgrams),
+                ~ safe_mutate(.x, window_id = .y))
+    
+    out %>%
+        transpose() %>%
+        pluck("result") %>%
+        compact() %>%
+        bind_rows()
+}
+```
+
+---
+
+# Word embeddings
+
+Let's create word windows of size 8. This is the computationally expensive part of the procedure and can easily run for several hours, depending on the size of the corpus, even on fairly powerful hardware.
+
+Note that the window size is crucial here: a small window captures only close associations and thus focuses on functionally similar words, whereas larger windows capture more thematic information. However, the larger the window, the higher the computational load.
+
+```{r eval=FALSE}
+plan(multisession)  ## for parallel processing
+
+guardian_windows <- guardian_nested %>%
+    mutate(words = future_map(words, slide_windows, 8L))
+```
+
+```{r echo=FALSE}
+guardian_windows <- readRDS("temp/guardian_windows.rds")
+```
+
+---
+
+# Word embeddings
+
+The result now contains *all* windows of 8 sequential words for each document. For example, the first document contains 698 words, and now 5,528 windows of 8 words:
+
+```{r}
+guardian_windows
+```
+
+---
+
+# Word embeddings
+
+Some more data transformations - we unnest our nested tibbles and unite the document and window id variables into one variable:
+
+```{r}
+guardian_windows_united <- guardian_windows %>% 
+    unnest(words) %>% 
+    unite(window_id, id, window_id)
+```
+
+---
+
+# Word embeddings
+
+Window `1_1` identifies the first 8 word window of the first document, window `1_2` the second 8 word window of the second document (note that this second window begins with the second word of the first window), etc.:
+
+```{r}
+guardian_windows_united
+```
+
+---
+
+# Word embeddings
+
+We can now compute the *PMI* for each two-word association in a given window using `pairwise_pmi()`:
+
+```{r warning=FALSE}
+guardian_pmi <- guardian_windows_united %>% 
+    pairwise_pmi(item = word, feature = window_id)
+```
+
+---
+
+# Word embeddings
+
+For each word, we now have the PMI of said word appearing with every other word in a 8-word window across the whole corpus. This results in 23,670,248 values for 117,188 unique words:
+
+```{r}
+guardian_pmi
+```
+
+---
+
+# Word embeddings
+
+Now for the actual word embeddings. To reduce the dimensionality of our word matrix (currently 23,670,248 cells), we apply a matrix factorization algorithmn called *singular value decomposition* (*SVD*) that factors our large initial matrix into a set of smaller matrices, the amount of which corresponds to the dimensionality of the vector space. This reduces the size of our initial word matrix to `n_unique_words * n_dimensions`:
+
+```{r eval=FALSE}
+guardian_word_vectors <- guardian_pmi %>%
+    widely_svd(
+        item1, item2, pmi,
+        nv = 100, maxit = 1000
+    )
+```
+
+```{r}
+guardian_word_vectors <- readRDS("temp/guardian_word_vectors.rds")
+```
+
+---
+
+# Word embeddings
+
+The resulting tibble now contains 100 values per word, giving the vector position of each word in each of the 100 dimensions. This way, we have reduced the size of our initial word matrix from 23,670,248 to 11,718,800 (117,188 unique words * 100 dimenions):
+
+```{r}
+guardian_word_vectors
+```
+
+---
+
+# Word embeddings
+
+Where to go from here? For example, we can compute the cosine similarity between words to see how close/distant they are from each other (and thus, how closely they are related in our corpus) in the vector space. Luckily, the [book](https://smltar.com/embeddings.html#exploring-cfpb-word-embeddings) also provides a helpful function for this:
+
+```{r}
+nearest_neighbors <- function(df, token) {
+    df %>%
+        widely(
+            ~ {
+                y <- .[rep(token, nrow(.)), ]
+                res <- rowSums(. * y) / 
+                    (sqrt(rowSums(. ^ 2)) * sqrt(sum(.[token, ] ^ 2)))
+                
+                matrix(res, ncol = 1, dimnames = list(x = names(res)))
+            },
+            sort = TRUE,
+            sparse = TRUE
+        )(item1, dimension, value) %>%
+        select(-item2)
+}
+```
+
+---
+
+# Word embeddings
+
+Let's take a look at Joe Biden:
+
+```{r}
+nearest_neighbors(guardian_word_vectors, "biden")
+```
+
+---
+
+# Word embeddings
+
+Or at Jürgen Klopp:
+
+```{r}
+nearest_neighbors(guardian_word_vectors, "klopp")
+```
+
+---
+
+# Word embeddings
+
+Who is closer to Washington?
+
+```{r}
+nearest_neighbors(guardian_word_vectors, "biden") %>% 
+  filter(item1 == "washington")
+```
+
+```{r}
+nearest_neighbors(guardian_word_vectors, "klopp") %>% 
+  filter(item1 == "washington")
+```
 
 ---
 
@@ -418,7 +874,9 @@ Remember that we lowercased all features, thus the retweet indicator `"RT"` can 
 ```{r}
 aoc_dfm <- aoc_tokens %>% 
   dfm() %>% 
-  dfm_remove(c("rt", stopwords("english")))
+  dfm_remove(c("rt", stopwords("english"))) %>% 
+  dfm_remove(pattern = "@*") %>% 
+  dfm_remove(pattern = "#*")
 aoc_dfm
 ```
 
@@ -445,16 +903,8 @@ Let's look at the top features for further problems:
 topfeatures(aoc_dfm)
 ```
 
-- `"amp"` is the remains of the HTML entity for the ampersand sign, `&amp;`. This (changing some special characters to their HTML entity) is one annoying quirk of the Twitter API. We may just remove this "by hand" (`dfm_remove("amp")`), or again, remove this beforehand with `stringr::str_replace_all()`. We could also look for further HTML entities with [Regex](https://stackoverflow.com/questions/26127775/remove-html-entities-and-extract-text-content-using-regex).
+- `"amp"` is the remains of the HTML entity for the ampersand sign, `&amp;`. This (changing some special characters to their HTML entity) is one annoying quirk of the Twitter API. We may just remove this "by hand" (`dfm_remove("amp")`). More generally, the most reliable option to deal with HTML entities is to decode them in the text beforehand `textutils::HTMLdecode()`.
 - `"w"` is the remains of `"w/"` (abbreviation for "with"). We may want to remove this by hand, or, more conveniently, use `dfm_select(min_nchar = 2)` to remove all one-letter words from our DFM.
-
----
-
-# Exercise solutions
-
-**Exercise 3**:
-
-On NexisUni, search for "Dogecoin" in news and set filters to Language = German and Timespan = Last 7 Days. Download in bulk and import with `lnt_read()` - done!
 
 ---
 

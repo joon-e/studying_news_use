@@ -21,7 +21,7 @@ Collecting digital trace data from social media via API requests, API wrapper pa
 
 ### Text Preprocessing in R (2021-06-14)
 
-- Slides: [HTML] / [PDF]
+- Slides: [HTML](3_data_preprocessing.html) / [PDF](slides/3_data_preprocessing.pdf)
 - Readings:
   - Boumans, Jelle W., and Damian Trilling. 2016. „Taking Stock of the Toolkit. An Overview of Relevant Automated Content Analysis Approaches and Techniques for Digital Journalism Scholars“. *Digital Journalism* 4 (1): 8–23. [https://doi.org/10.1080/21670811.2015.1096598](https://doi.org/10.1080/21670811.2015.1096598).
 
