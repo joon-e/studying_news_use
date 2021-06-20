@@ -27,7 +27,7 @@ Collecting digital trace data from social media via API requests, API wrapper pa
 
 ### Text Analysis in R, Part I: Text Description, Word Metrics and Dictionary Methods (2021-06-21)
 
-- Slides: [HTML] / [PDF]
+- Slides: [HTML](4_data_analysis_1.html) / [PDF](slides/4_data_analysis_1.pdf)
 - Readings:
   - Chan, Chung-hong, Joseph Bajjalieh, Loretta Auvil, Hartmut Wessler, Scott Althaus, Kasper Welbers, Wouter van Atteveldt, and Marc Jungblut. 2021. “Four Best Practices for Measuring News Sentiment Using ‘off-the-Shelf’ Dictionaries: A Large-Scale p-Hacking Experiment.” *Computational Communication Research* 3 (1): 1–27. [https://doi.org/10.5117/CCR2021.1.001.CHAN](https://doi.org/10.5117/CCR2021.1.001.CHAN).
 
