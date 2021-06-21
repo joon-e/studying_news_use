@@ -700,7 +700,7 @@ The summary objects also includes a `plot()` method that displays various import
 plot(gs_results)
 ```
 
---- 
+---
 
 # Dictionaries and beyond
 
@@ -754,7 +754,7 @@ btw_tokens <- tokens(btw_corpus,
   tokens_tolower() %>% 
   tokens_remove(c(stopwords("german", "nltk"), "rt", "#*", "@*")) %>% 
   tokens_select(min_nchar = 2) %>% 
-  tokens_keep("\\w", valuetype = "regex")
+  tokens_keep("\\w+", valuetype = "regex")
 ```
 
 We will also need a DFM:
@@ -834,7 +834,7 @@ liu_dict <- dictionary(list(
 
 # Exercise solutions
 
-Weighing the DFM before applying the dictionary gives the proportion of *construct terms* in the document: 
+Weighting the DFM before applying the dictionary gives the proportion of *construct terms* in the document: 
 
 ```{r}
 guardian_dfm %>% 
@@ -846,7 +846,7 @@ guardian_dfm %>%
 
 # Exercise solutions
 
-Weighing the DFM after applying the dictionary gives the proportion of *constructs* in the document (ignoring all other terms): 
+Weighting the DFM after applying the dictionary gives the proportion of *constructs* in the document (ignoring all other terms): 
 
 ```{r}
 guardian_dfm %>% 
