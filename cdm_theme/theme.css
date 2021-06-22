@@ -147,3 +147,10 @@ a:hover {
     background-position: 98% 20px, 100% 50%;
     background-size: 200px, 55%;    
 }
+
+.topic {
+    background-image: url('logo.svg'), url('../img/5/magazines.jpg');
+    background-repeat: no-repeat, no-repeat;
+    background-position: 98% 20px, 100% 50%;
+    background-size: 200px, 55%;    
+}

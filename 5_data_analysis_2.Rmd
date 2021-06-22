@@ -1,0 +1,87 @@
+---
+title: "Studying News Use with Computational Methods"
+subtitle: "Text Analysis in R, Part II: Topic Modeling"
+author: "Julian Unkel"
+institute: "University of Konstanz"
+date: "2021/06/28"
+output:
+  xaringan::moon_reader:
+    css: [default, "cdm_theme/theme.css", "cdm_theme/theme_fonts.css"]
+    lib_dir: libs
+    nature:
+      ratio: "16:9"
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      titleSlideClass: ["left", "bottom", "title-slide", "topic"]
+---
+
+# Agenda
+
+.pull-left[...
+]
+
+--
+
+.pull-right[Our agenda today:
+
+- Topic models
+  - Basics
+  - 
+- Keyword-assisted topic models
+  - asd
+- Validating topic models
+]
+
+---
+class: middle
+
+# Topic models
+
+---
+
+# Setup
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(quanteda)
+```
+
+---
+
+# Setup
+
+
+
+---
+
+# Topic models
+
+**Exercise 1: Topic models**
+
+...
+
+<center><img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"></center>
+
+---
+
+class: middle
+
+# Exercise solutions
+
+---
+
+# Exercise solutions
+
+**Exercise 1: Text description**
+
+---
+
+class: middle
+# Thanks
+
+Credits:
+- Slides created with [`xaringan`](https://github.com/yihui/xaringan)
+- Title image by [Marjan Blahn / Unsplash](https://unsplash.com/photos/AM-Tkk_dkNU)
+- Coding cat gif by [Memecandy/Giphy](https://giphy.com/gifs/memecandy-LmNwrBhejkK9EFP504)
