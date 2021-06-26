@@ -24,7 +24,9 @@ class: left, bottom, title-slide, topic, title-slide
 
 # Agenda
 
-.pull-left[...
+.pull-left[Especially with large text corpora, we may want to use methods to explore the textual content and discover meaningful patterns. Unsupervised machine learning methods structure text corpora into latent classes without much user input.
+
+**Topic modeling** describes one family of methods to uncover such meaningful patterns in large text corpora.
 ]
 
 --
@@ -33,9 +35,15 @@ class: left, bottom, title-slide, topic, title-slide
 
 - Topic models
   - Basics
-  - 
+  - Model fitting
+  - Model selection
+  - Model interpretation
+  - Adding covariates
 - Keyword-assisted topic models
-  - asd
+  - Defining a-priori topics
+  - Model fitting
+  - Model selection
+  - Model interpretation
 - Validating topic models
 ]
 
@@ -46,56 +54,1376 @@ class: middle
 
 ---
 
+# Topic models
+
+**Topic models** describe a family of similar methods to uncover meaningful patterns in documents based on their textual content. Among the most common methods are _LDA_ (Latent Dirichlet Allocation), _CTM_ (Correlated Topic Models), and _STM_ (Structural Topic Models).
+
+---
+
+# Topic models
+
+All methods share some common assumptions:
+
+- Text corpora consist of `\(D\)` documents (e.g. news articles, social media posts; individual documents numbered `\(d_1, d_2, ...\)`) and `\(V\)` terms (i.e., words; individual terms numbered `\(w_1, w_2, ...\)`). Documents can be represented as bags-of-words.
+- Text corpora can be represented by `\(K\)` latent topics which sit hierarchically between the whole corpus and invidiual documents. Each document `\(d_i\)` and each word `\(w_i\)` may "belong" with differing probabilities to topic `\(k_1, k_2, ...\)` (mixed membership). `\(K\)` has to be set by the researcher.
+- We want to estimate the matrices `\(D \times K\)` and `\(V \times K\)` which contain the document probabilites per topic, and the word probabilities per topic, respectively.
+- This is achieved by modeling a data generating process that describes the creation of documents as first drawing a probability distribution of topics for each document `\(d_1, d_2, ...\)`. For each word in document `\(d_i\)`, we then draw a topic from the document's topic distribution, and then a word from the topic's word distribution.
+
+---
+
+# Topic models
+
+- The word-topic matrix `\(V \times K\)` may then be used to describe and interpret meaning of topics `\(k_1, k_2, ...\)`, for example by looking at the words with the highest conditional probability for topic `\(k_j\)`.
+- The document-topic matrix `\(D \times K\)` may be used to assign documents to topics, for example by assinging each document `\(d_i\)` to topic `\(k_j\)` with the highest conditional probability.
+- Different topic modeling procedures differ mainly by the probability distributions used to represent the topic probabilities. 
+
+--
+
+In this class, we will use _STM_ (Structural Topic Modeling) for ease of use and the ability to add covariates.
+
+---
+
 # Setup
+
+Setup as usual:
 
 
 ```r
 library(tidyverse)
 library(tidytext)
 library(quanteda)
+library(stm)
 ```
 
-```
-## Package version: 3.0.0
-## Unicode version: 13.0
-## ICU version: 69.1
+
+
+
+---
+
+# Setup
+
+Load the Guardian corpus. As last time, we also create a variable for the day the article was published.
+
+
+```r
+guardian_tibble &lt;- readRDS("data/guardian_sample_2020.rds") %&gt;% 
+    mutate(day = lubridate::date(date))
 ```
 
-```
-## Parallel computing: 16 of 16 threads used.
-```
 
-```
-## See https://quanteda.io for tutorials and examples.
+
+--
+
+Preprocess as usual:
+
+
+```r
+guardian_corpus &lt;- corpus(guardian_tibble, 
+                          docid_field = "id", text_field = "body")
+
+guardian_tokens &lt;- guardian_corpus %&gt;% 
+  tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE,
+         remove_url = TRUE, remove_separators = TRUE) %&gt;% 
+  tokens_tolower()
+
+guardian_dfm &lt;- guardian_tokens %&gt;% 
+  dfm()
 ```
 
 ---
 
 # Setup
 
+DFM trimming may affect the outcome of topic modeling quite strongly. We usually want to remove common wiords with little discriminating value and very short documents to make the topic modeling results more interpretable and reduce computational load:
 
+
+```r
+trimmed_dfm &lt;- guardian_dfm %&gt;% 
+  dfm_trim(max_docfreq = 0.6, min_docfreq = .01, docfreq_type = "prop") %&gt;% 
+  dfm_remove(stopwords("en", source = "nltk")) %&gt;% 
+  dfm_subset(ntoken(guardian_dfm) &gt; 5)
+```
 
 ---
 
-# Topic models
+# Topic modeling with `stm`
 
-**Exercise 1: Topic models**
+We need to convert the DFM to a format suitable for the `stm` package:
 
-...
+
+```r
+stm_dfm &lt;- convert(trimmed_dfm, to = "stm")
+str(stm_dfm, max.level = 1)
+```
+
+```
+## List of 3
+##  $ documents:List of 9965
+##  $ vocab    : chr [1:5165] "100m" "1950s" "1960s" "1970s" ...
+##  $ meta     :'data.frame':	9965 obs. of  5 variables:
+```
+
+---
+
+# Model fitting
+
+To fit models, we simply use the `stm()` function. We need to provide the `documents` and the `vocab`, which are both accessible in the `stm_dfm` object. We also need to set the `K` parameter. We begin by estimating 20 topics (note that this may take quite a long time - use `verbose = TRUE` the follow the progress in the console; as topic models are initialized randomly, it may be useful to also set a `seed` to create reproducible results):
+
+
+```r
+guardian_stm_20 &lt;- stm(documents = stm_dfm$documents,
+                       vocab = stm_dfm$vocab,
+                       K = 20)
+guardian_stm_20
+```
+
+
+```
+## A topic model with 20 topics, 9965 documents and a 5165 word dictionary.
+```
+
+---
+
+# Model fitting
+
+We can use `plot()` and `summary()` functions on the output:
+
+
+```r
+plot(guardian_stm_20)
+```
+
+![](5_data_analysis_2_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+
+---
+
+# Model fitting
+
+
+```r
+summary(guardian_stm_20)
+```
+
+```
+## A topic model with 20 topics, 9965 documents and a 5165 word dictionary.
+```
+
+```
+## Topic 1 Top Words:
+##  	 Highest Prob: coronavirus, new, cases, people, virus, lockdown, covid-19 
+##  	 FREX: restrictions, cases, travel, quarantine, outbreak, infections, coronavirus 
+##  	 Lift: bridge, gatherings, passengers, quarantine, travellers, cruise, restrictions 
+##  	 Score: bridge, cases, coronavirus, virus, infections, restrictions, lockdown 
+## Topic 2 Top Words:
+##  	 Highest Prob: police, people, violence, officers, two, man, prison 
+##  	 FREX: police, officers, prison, violence, protesters, crime, arrested 
+##  	 Lift: en, sentenced, custody, police, prison, protesters, officers 
+##  	 Score: police, en, officers, violence, protesters, arrested, prison 
+## Topic 3 Top Words:
+##  	 Highest Prob: water, climate, years, new, year, fire, air 
+##  	 FREX: species, environmental, animals, wildlife, land, fires, birds 
+##  	 Lift: wildlife, grey, species, conservation, birds, pollution, fires 
+##  	 Score: grey, species, climate, wildlife, water, pollution, conservation 
+## Topic 4 Top Words:
+##  	 Highest Prob: year, pay, business, money, financial, government, economy 
+##  	 FREX: income, tax, financial, scheme, debt, unemployment, pay 
+##  	 Lift: accommodation, furlough, savings, shareholders, income, payments, loans 
+##  	 Score: accommodation, tax, unemployment, customers, businesses, payments, income 
+## Topic 5 Top Words:
+##  	 Highest Prob: care, health, hospital, nhs, patients, medical, coronavirus 
+##  	 FREX: hospital, patients, nhs, care, doctors, hospitals, medical 
+##  	 Lift: e, nurses, doctors, hospital, patients, nhs, gp 
+##  	 Score: e, patients, hospital, nhs, care, hospitals, health 
+## Topic 6 Top Words:
+##  	 Highest Prob: london, years, family, children, school, art, first 
+##  	 FREX: art, born, london, father, arts, royal, museum 
+##  	 Lift: art, nee, gallery, museum, exhibition, grandchildren, sons 
+##  	 Score: art, museum, arts, london, father, children, nee 
+## Topic 7 Top Words:
+##  	 Highest Prob: league, game, players, team, season, last, first 
+##  	 FREX: league, players, football, game, games, cup, club 
+##  	 Lift: fa, teammates, championship, club's, discipline, goalkeeper, league 
+##  	 Score: league, discipline, players, cup, season, football, game 
+## Topic 8 Top Words:
+##  	 Highest Prob: people, workers, work, home, staff, social, working 
+##  	 FREX: workers, masks, safety, vulnerable, mask, working, safe 
+##  	 Lift: contributions, councils, homeless, workers, cleaning, masks, wellbeing 
+##  	 Score: contributions, workers, masks, people, staff, distancing, government 
+## Topic 9 Top Words:
+##  	 Highest Prob: media, online, news, company, social, new, facebook 
+##  	 FREX: facebook, content, digital, google, online, app, users 
+##  	 Lift: column, google, users, tech, software, apps, facebook 
+##  	 Score: column, facebook, google, online, media, app, users 
+## Topic 10 Top Words:
+##  	 Highest Prob: government, told, report, legal, public, court, decision 
+##  	 FREX: legal, inquiry, allegations, commission, documents, court, committee 
+##  	 Lift: regret, inquiry, allegations, watchdog, judicial, documents, legal 
+##  	 Score: regret, inquiry, court, government, allegations, minister, legal 
+## Topic 11 Top Words:
+##  	 Highest Prob: food, two, like, minutes, make, small, well 
+##  	 FREX: eat, add, cook, coffee, kitchen, cooking, garden 
+##  	 Lift: pan, egg, bread, salt, milk, cooking, coffee 
+##  	 Score: pan, food, oil, cheese, cooking, salt, wine 
+## Topic 12 Top Words:
+##  	 Highest Prob: women, even, many, might, way, may, often 
+##  	 FREX: women, fashion, female, sex, men, perhaps, women's 
+##  	 Lift: c, gender, women, fashion, female, sex, male 
+##  	 Score: c, women, sex, fashion, men, sexual, female 
+## Topic 13 Top Words:
+##  	 Highest Prob: australia, us, china, australian, chinese, international, government 
+##  	 FREX: china, chinese, hong, kong, foreign, australians, iran 
+##  	 Lift: hong, china's, beijing, kong, iran, chinese, china 
+##  	 Score: hong, china, chinese, kong, australia, australian, china's 
+## Topic 14 Top Words:
+##  	 Highest Prob: trump, president, biden, us, election, trump's, donald 
+##  	 FREX: biden, trump, trump's, donald, republican, presidential, americans 
+##  	 Lift: ballots, republicans, biden, biden's, trump's, trump, clinton 
+##  	 Score: trump, ballots, biden, trump's, election, republican, voters 
+## Topic 15 Top Words:
+##  	 Highest Prob: film, show, music, series, new, tv, first 
+##  	 FREX: film, song, album, comedy, music, films, songs 
+##  	 Lift: lyrics, albums, guitar, moon, album, song, comedy 
+##  	 Score: moon, film, music, album, comedy, song, songs 
+## Topic 16 Top Words:
+##  	 Highest Prob: says, like, people, time, get, think, i'm 
+##  	 FREX: i'm, really, think, got, i've, says, lot 
+##  	 Lift: gu.com, i'll, i'm, i've, i'd, oh, ok 
+##  	 Score: gu.com, i'm, says, i've, i'd, he's, think 
+## Topic 17 Top Words:
+##  	 Highest Prob: uk, government, johnson, eu, deal, minister, climate 
+##  	 FREX: eu, johnson, brexit, emissions, agreement, boris, johnson's 
+##  	 Lift: renewable, eu, eu's, fuels, brussels, gove, johnson's 
+##  	 Score: renewable, eu, emissions, climate, brexit, government, johnson 
+## Topic 18 Top Words:
+##  	 Highest Prob: party, black, people, labour, political, leader, politics 
+##  	 FREX: party, racism, labour, sanders, politics, conservative, starmer 
+##  	 Lift: corbyn, sanders, starmer, keir, tories, racism, labour's 
+##  	 Score: sanders, black, labour, racism, starmer, party, voters 
+## Topic 19 Top Words:
+##  	 Highest Prob: university, students, schools, school, people, health, covid-19 
+##  	 FREX: students, schools, vaccine, university, universities, education, pupils 
+##  	 Lift: pupils, vaccines, vaccine, universities, tracing, hancock, students 
+##  	 Score: pupils, vaccine, students, schools, vaccines, universities, virus 
+## Topic 20 Top Words:
+##  	 Highest Prob: book, story, read, books, world, writing, life 
+##  	 FREX: book, books, letters, novel, writes, writing, read 
+##  	 Lift: solutions, literary, novels, writes, fiction, letters, memoir 
+##  	 Score: solutions, book, books, novel, letters, writers, fiction
+```
+
+---
+
+# Model selection
+
+Before we start interpreting, we need to talk about setting `\(K\)`. Apart from theoretical considerations, we may use measures such as _semantic coherence_ and _exclusivity_ to gauge the validity of topic models.
+
+- _Semantic coherence_ increases with more words with high topic probabilities appearing in the same documents. Manual intepretation and labelling of topics is usually easier for topics with higher semantic coherence.
+- _Exclusivity_ increases with more words with high probabilites for one topic having lower probabilites for other topics. 
+- Both measures usually represent a trade-off: Semantic coherence can be increased simply by estimating fewer topics; exclusivity usually increases with more topics.
+
+---
+
+# Model selection
+
+Compute semantic coherence with `semanticCoherence()`:
+
+
+```r
+semanticCoherence(guardian_stm_20, stm_dfm$documents)
+```
+
+```
+##  [1] -52.60617 -68.15450 -80.08364 -54.77585 -61.35769 -61.44610 -63.25772
+##  [8] -45.84327 -90.86718 -62.00340 -62.46925 -45.84828 -74.30635 -45.59453
+## [15] -77.92583 -39.70473 -66.85216 -76.90637 -81.31434 -64.50726
+```
+
+---
+
+# Model selection
+
+Compute semantic coherence with `exclusivity()`:
+
+
+```r
+exclusivity(guardian_stm_20)
+```
+
+```
+##  [1] 9.775630 9.670680 9.611312 9.698116 9.930043 9.724218 9.708318 9.842582
+##  [9] 9.842910 9.617226 9.426971 9.400283 9.891755 9.899018 9.474194 9.822790
+## [17] 9.928742 9.862438 9.779013 9.746267
+```
+
+---
+
+# Model selection
+
+To investigate the common trade-off between semantic coherence and exclusivity, it is useful to plot both measures:
+
+.pull-left[
+
+```r
+tibble(
+  topic = 1:20,
+  exclusivity = exclusivity(guardian_stm_20),
+  semantic_coherence = semanticCoherence(guardian_stm_20, stm_dfm$documents)
+  ) %&gt;% 
+  ggplot(aes(semantic_coherence, exclusivity, label = topic)) +
+  geom_point() +
+  geom_text(nudge_y = .02) +
+  theme_classic()
+```
+]
+
+.pull-right[
+![](5_data_analysis_2_files/figure-html/plot-k20-out-1.png)&lt;!-- --&gt;
+]
+
+---
+
+# Model selection
+
+We can use semantic coherence and exclusivity to compare topic models with a different number `K` of topics. However, to do so, we must actually fit all models we want to compare.
+
+--
+
+As this may take some time, it is useful to employ parallelization to speed up the process. Using the `furrr` package, we parallelize model estimation, so depending on the number of available cores, fitting multiple models may actually on take marginally more time than fitting a single model:
+
+
+```r
+library(furrr)
+plan(multisession)
+
+guardian_models &lt;- tibble(K = c(20, 30, 40, 50, 60)) %&gt;%
+  mutate(topic_model = future_map(K, ~stm(documents = stm_dfm$documents, 
+                                          vocab = stm_dfm$vocab,
+                                          K = .,
+                                          verbose = FALSE)))
+```
+
+---
+
+# Model selection
+
+We can then map the semantic coherence and exclusivity computations on the estimated models:
+
+
+```r
+model_scores &lt;- guardian_models %&gt;% 
+  mutate(exclusivity = map(topic_model, exclusivity),
+         semantic_coherence = map(topic_model, semanticCoherence, stm_dfm$documents)) %&gt;% 
+  select(K, exclusivity, semantic_coherence)
+
+model_scores
+```
+
+```
+## # A tibble: 5 x 3
+##       K exclusivity semantic_coherence
+##   &lt;dbl&gt; &lt;list&gt;      &lt;list&gt;            
+## 1    20 &lt;dbl [20]&gt;  &lt;dbl [20]&gt;        
+## 2    30 &lt;dbl [30]&gt;  &lt;dbl [30]&gt;        
+## 3    40 &lt;dbl [40]&gt;  &lt;dbl [40]&gt;        
+## 4    50 &lt;dbl [50]&gt;  &lt;dbl [50]&gt;        
+## 5    60 &lt;dbl [60]&gt;  &lt;dbl [60]&gt;
+```
+
+---
+
+# Model selection
+
+...and plot the values for all models:
+
+.pull-left[
+
+```r
+model_scores %&gt;% 
+  unnest(c(exclusivity, semantic_coherence)) %&gt;% 
+  ggplot(aes(x = semantic_coherence, y = exclusivity, color = as.factor(K))) +
+  geom_point() +
+  theme_classic()
+```
+]
+
+.pull-right[
+![](5_data_analysis_2_files/figure-html/plot-many-k-out-1.png)&lt;!-- --&gt;
+]
+
+---
+
+# Model selection
+
+To more easily compare models, we let's summarize both measures per model. This neatly shows the common trade-off, but it seems like the 40-topic solution may be a good start:
+
+.pull-left[
+
+```r
+model_scores %&gt;% 
+  unnest(c(exclusivity, semantic_coherence)) %&gt;% 
+  group_by(K) %&gt;% 
+  summarize(exclusivity = mean(exclusivity),
+            semantic_coherence = mean(semantic_coherence)) %&gt;% 
+  ggplot(aes(x = semantic_coherence, y = exclusivity, color = as.factor(K))) +
+  geom_point() +
+  theme_classic()
+```
+]
+
+.pull-right[
+![](5_data_analysis_2_files/figure-html/plot-many-k-sum-out-1.png)&lt;!-- --&gt;
+]
+
+---
+
+# Model intepretation
+
+Now to the fun stuff: What actually _are_ our topics? First, let's extract our (for now) final model from the many models we calculated:
+
+
+```r
+guardian_stm_40 &lt;- guardian_models %&gt;% 
+  filter(K == 40) %&gt;% 
+  pull(topic_model) %&gt;% 
+  .[[1]]
+
+guardian_stm_40
+```
+
+```
+## A topic model with 40 topics, 9965 documents and a 5165 word dictionary.
+```
+
+---
+
+# Model intepretation
+
+We can extract the most important words per topic with the `labelTopics()` function. Apart from the actual word probabilities per topic, this also includes three additional ways of finding important words. For example, `FREX` (*frequency-exclusivity*) is the ratio of word frequency and word exclusivity per topic. 
+
+
+```r
+terms &lt;- labelTopics(guardian_stm_40)
+terms
+```
+
+```
+## Topic 1 Top Words:
+##  	 Highest Prob: local, city, new, london, people, council, building 
+##  	 FREX: local, housing, building, cities, city, town, streets 
+##  	 Lift: bridge, buildings, towns, housing, bike, traffic, building 
+##  	 Score: bridge, city, housing, local, residents, council, town 
+## Topic 2 Top Words:
+##  	 Highest Prob: travel, de, french, france, two, german, flight 
+##  	 FREX: passengers, flight, flights, ship, airport, travel, crew 
+##  	 Lift: en, passenger, passengers, tourists, airport, railway, greece 
+##  	 Score: en, passengers, flights, france, french, travel, de 
+## Topic 3 Top Words:
+##  	 Highest Prob: year, number, people, data, last, since, uk 
+##  	 FREX: figures, average, compared, increase, higher, rate, rise 
+##  	 Lift: grey, statistics, average, compared, figures, risen, proportion 
+##  	 Score: grey, data, average, figures, increase, rate, rates 
+## Topic 4 Top Words:
+##  	 Highest Prob: government, pay, money, economy, economic, scheme, financial 
+##  	 FREX: income, tax, scheme, unemployment, debt, budget, pay 
+##  	 Lift: accommodation, furlough, income, incomes, fiscal, loans, tax 
+##  	 Score: accommodation, tax, unemployment, government, income, sunak, payments 
+## Topic 5 Top Words:
+##  	 Highest Prob: water, fire, species, land, years, across, sea 
+##  	 FREX: species, wildlife, fires, animals, birds, trees, land 
+##  	 Lift: e, species, wildlife, conservation, fires, birds, flooding 
+##  	 Score: e, species, water, wildlife, fires, conservation, birds 
+## Topic 6 Top Words:
+##  	 Highest Prob: art, theatre, work, british, london, arts, history 
+##  	 FREX: art, theatre, arts, museum, festival, cultural, artist 
+##  	 Lift: art, gallery, museum, painting, exhibition, theatre, arts 
+##  	 Score: art, theatre, museum, arts, artists, artist, gallery 
+## Topic 7 Top Words:
+##  	 Highest Prob: west, manchester, sky, jones, st, james, v 
+##  	 FREX: v, leeds, west, newcastle, sky, wilson, st 
+##  	 Lift: discipline, leeds, v, newcastle, sheffield, davis, wilson 
+##  	 Score: discipline, manchester, west, v, brighton, leeds, sky 
+## Topic 8 Top Words:
+##  	 Highest Prob: people, care, workers, staff, health, home, work 
+##  	 FREX: workers, care, staff, mental, vulnerable, services, working 
+##  	 Lift: contributions, charities, nursing, workers, ppe, mental, frontline 
+##  	 Score: contributions, workers, care, staff, health, mental, people 
+## Topic 9 Top Words:
+##  	 Highest Prob: use, new, online, used, using, technology, space 
+##  	 FREX: technology, digital, virtual, internet, video, online, space 
+##  	 Lift: column, machines, computer, digital, technology, devices, virtual 
+##  	 Score: column, digital, technology, online, games, video, tech 
+## Topic 10 Top Words:
+##  	 Highest Prob: told, morning, day, meeting, sunday, friday, due 
+##  	 FREX: morning, meeting, event, date, andrew, email, royal 
+##  	 Lift: regret, prince, scheduled, wedding, lunchtime, cancel, sussex 
+##  	 Score: regret, prince, royal, harry, sunday, email, morning 
+## Topic 11 Top Words:
+##  	 Highest Prob: add, minutes, oil, cook, heat, water, make 
+##  	 FREX: cook, salt, pan, chicken, add, sugar, heat 
+##  	 Lift: recipe, pan, salt, eggs, egg, sugar, cream 
+##  	 Score: pan, oil, salt, heat, cook, egg, sugar 
+## Topic 12 Top Words:
+##  	 Highest Prob: app, amazon, amp, google, apple, c, b 
+##  	 FREX: app, amazon, c, apple, google, b, apps 
+##  	 Lift: c, apps, app, amazon, apple, x, google 
+##  	 Score: c, app, amazon, google, apple, apps, users 
+## Topic 13 Top Words:
+##  	 Highest Prob: china, us, chinese, government, foreign, security, international 
+##  	 FREX: hong, chinese, kong, china, china's, iran, foreign 
+##  	 Lift: hong, china's, kong, beijing, chinese, syria, afghanistan 
+##  	 Score: hong, china, chinese, kong, iran, china's, foreign 
+## Topic 14 Top Words:
+##  	 Highest Prob: trump, president, us, trump's, donald, house, white 
+##  	 FREX: trump, trump's, donald, president, americans, washington, ballots 
+##  	 Lift: ballots, trump's, president's, trump, cnn, donald, washington 
+##  	 Score: trump, ballots, trump's, republican, donald, president, republicans 
+## Topic 15 Top Words:
+##  	 Highest Prob: music, song, album, like, songs, band, new 
+##  	 FREX: song, album, songs, band, music, singer, singing 
+##  	 Lift: albums, album, guitar, moon, song, songs, piano 
+##  	 Score: moon, music, album, song, songs, band, albums 
+## Topic 16 Top Words:
+##  	 Highest Prob: even, us, many, much, world, like, may 
+##  	 FREX: perhaps, sense, seem, seems, simply, indeed, columnist 
+##  	 Lift: gu.com, capitalism, columnist, moral, mere, notion, surely 
+##  	 Score: gu.com, columnist, perhaps, political, world, human, politics 
+## Topic 17 Top Words:
+##  	 Highest Prob: climate, energy, change, emissions, global, new, carbon 
+##  	 FREX: emissions, climate, carbon, energy, gas, fuel, coal 
+##  	 Lift: renewable, emissions, fossil, carbon, coal, fuels, greenhouse 
+##  	 Score: renewable, emissions, climate, carbon, fossil, coal, oil 
+## Topic 18 Top Words:
+##  	 Highest Prob: biden, election, voters, democratic, vote, campaign, party 
+##  	 FREX: voters, sanders, biden, democratic, votes, voting, democrats 
+##  	 Lift: sanders, ballot, voter, bernie, polls, votes, voters 
+##  	 Score: sanders, biden, voters, election, democratic, biden's, democrats 
+## Topic 19 Top Words:
+##  	 Highest Prob: children, school, students, university, schools, education, young 
+##  	 FREX: students, education, school, teachers, pupils, schools, student 
+##  	 Lift: pupils, teachers, students, education, teaching, student, educational 
+##  	 Score: pupils, students, schools, children, school, education, teachers 
+## Topic 20 Top Words:
+##  	 Highest Prob: book, read, story, books, writing, novel, published 
+##  	 FREX: book, books, novel, writes, writing, read, reading 
+##  	 Lift: solutions, literary, books, memoir, novels, book, writes 
+##  	 Score: solutions, book, books, novel, writers, guardianbookshop.com, fiction 
+## Topic 21 Top Words:
+##  	 Highest Prob: party, johnson, labour, minister, prime, government, mps 
+##  	 FREX: labour, mps, johnson, tory, mp, cummings, starmer 
+##  	 Lift: starmer, corbyn, tories, keir, tory, labour's, cummings 
+##  	 Score: corbyn, minister, cummings, mps, starmer, labour, johnson 
+## Topic 22 Top Words:
+##  	 Highest Prob: health, patients, covid-19, vaccine, hospital, medical, virus 
+##  	 FREX: patients, vaccine, doctors, vaccines, disease, hospital, hospitals 
+##  	 Lift: vaccines, vaccine, patients, respiratory, clinical, immune, treatments 
+##  	 Score: vaccines, patients, vaccine, hospital, nhs, disease, hospitals 
+## Topic 23 Top Words:
+##  	 Highest Prob: think, say, know, asked, whether, told, right 
+##  	 FREX: question, asked, think, wrong, answer, questions, know 
+##  	 Lift: answers, answer, answered, replied, question, wrong, apologise 
+##  	 Score: answers, think, asked, question, interview, questions, that's 
+## Topic 24 Top Words:
+##  	 Highest Prob: film, show, tv, series, bbc, comedy, story 
+##  	 FREX: film, comedy, films, episode, actor, netflix, tv 
+##  	 Lift: 9pm, comedy, films, film, starring, netflix, episodes 
+##  	 Score: 9pm, film, comedy, films, bbc, actor, tv 
+## Topic 25 Top Words:
+##  	 Highest Prob: says, like, people, i'm, get, really, time 
+##  	 FREX: i'm, i've, says, really, got, lot, think 
+##  	 Lift: mirror, i've, i'll, i'd, i'm, oh, admits 
+##  	 Score: mirror, says, i'm, i've, i'd, people, he's 
+## Topic 26 Top Words:
+##  	 Highest Prob: court, legal, case, report, law, investigation, evidence 
+##  	 FREX: investigation, legal, court, allegations, inquiry, lawyers, alleged 
+##  	 Lift: saudi, sentenced, prosecution, lawyers, allegations, convicted, prosecutors 
+##  	 Score: saudi, court, investigation, inquiry, allegations, legal, justice 
+## Topic 27 Top Words:
+##  	 Highest Prob: women, men, woman, sexual, female, sex, women's 
+##  	 FREX: women, sex, sexual, gender, female, male, men 
+##  	 Lift: origins, gender, women, sex, sexually, female, male 
+##  	 Score: women, origins, sexual, sex, female, woman, men 
+## Topic 28 Top Words:
+##  	 Highest Prob: police, black, people, white, officers, protests, racism 
+##  	 FREX: police, racism, officers, protesters, protests, protest, racial 
+##  	 Lift: minneapolis, racism, floyd, policing, protesters, officers, brutality 
+##  	 Score: police, minneapolis, black, officers, racism, protests, protesters 
+## Topic 29 Top Words:
+##  	 Highest Prob: league, players, football, club, season, premier, clubs 
+##  	 FREX: league, football, players, clubs, club, premier, chelsea 
+##  	 Lift: ham, club's, fa, football, league's, league, footballers 
+##  	 Score: ham, league, players, football, premier, season, fa 
+## Topic 30 Top Words:
+##  	 Highest Prob: company, business, companies, industry, year, market, customers 
+##  	 FREX: customers, sales, companies, stores, retail, company, market 
+##  	 Lift: aircraft, suppliers, customers, customer, retailers, airline, sales 
+##  	 Score: aircraft, customers, companies, sales, stores, company, retailers 
+## Topic 31 Top Words:
+##  	 Highest Prob: family, years, died, life, mother, father, two 
+##  	 FREX: father, mother, daughter, wife, family, died, son 
+##  	 Lift: nee, father's, father, mother, daughter, grandchildren, married 
+##  	 Score: nee, died, mother, father, family, wife, hospital 
+## Topic 32 Top Words:
+##  	 Highest Prob: uk, eu, european, deal, british, trade, brexit 
+##  	 FREX: eu, european, brexit, trade, deal, negotiations, agreement 
+##  	 Lift: eu, eu's, brussels, negotiations, withdrawal, negotiating, customs 
+##  	 Score: eu, eu's, brexit, uk, european, agreement, brussels 
+## Topic 33 Top Words:
+##  	 Highest Prob: media, news, social, facebook, twitter, post, online 
+##  	 FREX: media, facebook, journalists, twitter, posted, content, conspiracy 
+##  	 Lift: articles, facebook, media, followers, journalism, misinformation, newspapers 
+##  	 Score: articles, media, facebook, instagram, conspiracy, content, journalists 
+## Topic 34 Top Words:
+##  	 Highest Prob: australia, australian, government, australia's, morrison, minister, nsw 
+##  	 FREX: australia, australia's, universities, nsw, australian, morrison, australians 
+##  	 Lift: australians, queensland, universities, nsw, canberra, australia's, australia 
+##  	 Score: universities, australia, australian, nsw, morrison, australia's, australians 
+## Topic 35 Top Words:
+##  	 Highest Prob: food, christmas, garden, day, restaurant, lockdown, eat 
+##  	 FREX: restaurant, garden, food, coffee, eat, christmas, kitchen 
+##  	 Lift: cheese, coffee, drinks, restaurant, beer, cafe, lunch 
+##  	 Score: cheese, food, restaurant, restaurants, kitchen, garden, eat 
+## Topic 36 Top Words:
+##  	 Highest Prob: game, first, ball, back, goal, team, england 
+##  	 FREX: ball, goal, game, scored, wolves, goals, score 
+##  	 Lift: wolves, scoring, ball, goal, scored, midfield, defensive 
+##  	 Score: wolves, ball, game, midfield, scored, goalkeeper, scoring 
+## Topic 37 Top Words:
+##  	 Highest Prob: world, year, sport, last, team, first, win 
+##  	 FREX: sport, cricket, rugby, racing, champion, coach, grand 
+##  	 Lift: olympic, hamilton, athletes, racing, cricket, champion, olympics 
+##  	 Score: hamilton, sport, tournament, cricket, rugby, athletes, championship 
+## Topic 38 Top Words:
+##  	 Highest Prob: government, people, lockdown, public, england, restrictions, health 
+##  	 FREX: restrictions, distancing, measures, hancock, guidance, testing, advice 
+##  	 Lift: sage, hancock, trace, pubs, tier, guidance, trusts 
+##  	 Score: sage, government, nhs, hancock, lockdown, distancing, england 
+## Topic 39 Top Words:
+##  	 Highest Prob: coronavirus, cases, virus, new, covid-19, health, people 
+##  	 FREX: cases, outbreak, deaths, virus, coronavirus, quarantine, tested 
+##  	 Lift: johns, wuhan, toll, quarantined, outbreak, quarantine, deaths 
+##  	 Score: johns, cases, virus, coronavirus, deaths, infections, outbreak 
+## Topic 40 Top Words:
+##  	 Highest Prob: masks, wearing, face, fashion, mask, wear, hands 
+##  	 FREX: wearing, mask, wear, fashion, masks, skin, clothes 
+##  	 Lift: skin, wear, mask, worn, wearing, fashion, clothes 
+##  	 Score: skin, masks, mask, fashion, wear, wearing, clothes
+```
+
+---
+
+# Model intepretation
+
+**Exercise 1: Topic model interpretation**
+
+Try to label the topics from this model. Are there any topics that are problematic or stick out otherwise?
 
 &lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
 
 ---
 
-class: middle
+# Model intepretation
 
-# Exercise solutions
+To extract the actual probability values, let's make use of the good ol' `tidy()` function again. If applied to an STM object, this by default extracts the `\(V \times K\)` matrix (called `\(\beta\)` in STM):
+
+
+```r
+terms_probs &lt;- tidy(guardian_stm_40, matrix = "beta")
+terms_probs
+```
+
+```
+## # A tibble: 206,600 x 3
+##    topic term      beta
+##    &lt;int&gt; &lt;chr&gt;    &lt;dbl&gt;
+##  1     1 100m  4.82e-14
+##  2     2 100m  5.57e-24
+##  3     3 100m  4.17e-16
+##  4     4 100m  7.52e- 5
+##  5     5 100m  1.90e- 5
+##  6     6 100m  2.03e- 7
+##  7     7 100m  9.58e-13
+##  8     8 100m  4.18e-30
+##  9     9 100m  2.26e- 7
+## 10    10 100m  8.11e- 9
+## # ... with 206,590 more rows
+```
 
 ---
 
-# Exercise solutions
+# Model interpretation
 
-**Exercise 1: Text description**
+All beta values add up to `1` per topic:
+
+
+```r
+terms_probs %&gt;% 
+  group_by(topic) %&gt;% 
+  summarise(sum_beta = sum(beta))
+```
+
+```
+## # A tibble: 40 x 2
+##    topic sum_beta
+##    &lt;int&gt;    &lt;dbl&gt;
+##  1     1        1
+##  2     2        1
+##  3     3        1
+##  4     4        1
+##  5     5        1
+##  6     6        1
+##  7     7        1
+##  8     8        1
+##  9     9        1
+## 10    10        1
+## # ... with 30 more rows
+```
+
+
+---
+
+# Model interpretation
+
+To extract the `\(D \times K\)` matrix (called `\(\gamma\)` in STM), simply pass `matrix = "gamma"` to `tidy()`:
+
+
+```r
+doc_probs &lt;- tidy(guardian_stm_40, matrix = "gamma", document_names = stm_dfm$meta$title)
+doc_probs
+```
+
+```
+## # A tibble: 398,600 x 3
+##    document                                                        topic   gamma
+##    &lt;chr&gt;                                                           &lt;int&gt;   &lt;dbl&gt;
+##  1 We know this disaster is unprecedented – no amount of Scott Mo~     1 0.00218
+##  2 Mariah Carey's Twitter account hacked on New Year's Eve             1 0.00319
+##  3 Australia weather forecast: dangerous bushfire and heatwave co~     1 0.00610
+##  4 TV tonight: Sherlock’s writers get their teeth into Dracula         1 0.00417
+##  5 Shipping fuel regulation to cut sulphur levels comes into force     1 0.00444
+##  6 Western Balkans left 'betrayed' by EU over membership talks         1 0.00134
+##  7 Welcome to the roaring 2020s – inside the 3 January edition of~     1 0.00557
+##  8 The Power of Bad and How to Overcome It review – professional ~     1 0.00594
+##  9 Top 10 books about new beginnings                                   1 0.00220
+## 10 Three cities, VAR and a $15m prize – ATP Cup prepares for laun~     1 0.00764
+## # ... with 398,590 more rows
+```
+
+---
+
+# Model interpretation
+
+Gamma values add up to `1` per document:
+
+
+```r
+doc_probs %&gt;% 
+  group_by(document) %&gt;% 
+  summarise(sum_gamma = sum(gamma))
+```
+
+```
+## # A tibble: 9,881 x 2
+##    document                                                            sum_gamma
+##    &lt;chr&gt;                                                                   &lt;dbl&gt;
+##  1 '$1,000 per person should be the baseline': Andrew Yang on direct ~         1
+##  2 'A beautiful change': Australia in bloom after drought-breaking ra~         1
+##  3 'A chance to be more than a number': the female inmates podcasting~         1
+##  4 'A climate change-scale problem': how the internet is destroying us         1
+##  5 'A cry for help': Fifth of New Zealand high school pupils exposed ~         1
+##  6 'A defining moment in the Middle East': the killing of Qassem Sule~         1
+##  7 'A different twist': how school nativity plays have adapted to the~         1
+##  8 'A game changer'. The UK's first LGBTQ+ extra-care housing scheme ~         1
+##  9 'A ghost-town, tumbleweed quality': New York shuts down over coron~         1
+## 10 'A giant has fallen': anti-apartheid activist Denis Goldberg dies ~         1
+## # ... with 9,871 more rows
+```
+
+---
+
+# Model interpretation
+
+One common way of reporting topic models is by plotting topic proportions and most important words together:
+
+
+```r
+top_terms &lt;- tibble(topic = terms$topicnums,
+                    frex = apply(terms$frex, 1, paste, collapse = ", "))
+
+gamma_by_topic &lt;- doc_probs %&gt;% 
+  group_by(topic) %&gt;%
+  summarise(gamma = mean(gamma)) %&gt;%
+  arrange(desc(gamma)) %&gt;%
+  left_join(top_terms, by = "topic") %&gt;%
+  mutate(topic = paste0("Topic ", topic),
+         topic = reorder(topic, gamma))
+
+gamma_by_topic %&gt;% 
+  ggplot(aes(topic, gamma, label = frex, fill = topic)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(hjust = 0, nudge_y = 0.0005, size = 3) +
+  coord_flip() +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.11), labels = scales::percent) +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank()) +
+  labs(x = NULL, y = expression(gamma))
+```
+
+---
+
+# Model interpretation
+
+![](5_data_analysis_2_files/figure-html/plot-docs-words-out-1.png)&lt;!-- --&gt;
+
+---
+
+# Model interpretation
+
+Of course, we can now also make use of other document variables, for example, to show topic distribution over time. For example, let's compare topic `14` (US election terms) and `32` (Brexit terms):
+
+
+```r
+doc_probs %&gt;% 
+  left_join(guardian_tibble, by = c("document" = "title")) %&gt;% 
+  mutate(day = lubridate::date(date)) %&gt;% 
+  group_by(topic, day) %&gt;% 
+  summarise(n = n(),
+            gamma = mean(gamma), 
+            .groups = "drop") %&gt;% 
+  mutate(topic = as_factor(topic)) %&gt;% 
+  filter(topic %in% c(14, 32)) %&gt;% 
+  ggplot(aes(x = day, y = gamma, color = topic, fill = topic)) +
+  geom_line(size = 1) +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.position = "bottom") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.2), labels = scales::percent) +
+  labs(x = "Date", y = expression(gamma), color = "Topic", fill = "Topic")
+```
+
+---
+
+# Model interpretation
+
+![](5_data_analysis_2_files/figure-html/plot-topics-time-out-1.png)&lt;!-- --&gt;
+
+---
+
+# Adding covariates
+
+Apart from just comparing topics by document meta variables after modeling, we can also explicitly model relationships between topics and those variables by adding them as covariates that predict topic prevalance in the model:
+
+
+```r
+guardian_stm_40_cov &lt;- stm(documents = stm_dfm$documents,
+                           vocab = stm_dfm$vocab,
+                           prevalence = ~ stm_dfm$meta$pillar,
+                           K = 40,
+                           verbose = FALSE)
+guardian_stm_40_cov
+```
+
+
+```
+## A topic model with 40 topics, 9965 documents and a 5165 word dictionary.
+```
+
+---
+
+# Adding covariates
+
+We can then extract the effects with `estimateEffect()` function:
+
+
+```r
+stm_40_effects &lt;- estimateEffect(1:40 ~ pillar, guardian_stm_40_cov, stm_dfm$meta)
+```
+
+--
+
+This provides regression tables per topic for the covariate effects:
+
+
+```r
+summary(stm_40_effects, topics = c(14))
+```
+
+```
+## 
+## Call:
+## estimateEffect(formula = 1:40 ~ pillar, stmobj = guardian_stm_40_cov, 
+##     metadata = stm_dfm$meta)
+## 
+## 
+## Topic 14:
+## 
+## Coefficients:
+##                  Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)      0.013826   0.002346   5.893 3.91e-09 ***
+## pillarLifestyle -0.010491   0.003745  -2.801   0.0051 ** 
+## pillarNews       0.019974   0.002773   7.204 6.27e-13 ***
+## pillarOpinion    0.017408   0.004040   4.309 1.65e-05 ***
+## pillarSport     -0.005565   0.003429  -1.623   0.1047    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+---
+
+# Adding covariates
+
+STM effects objects also have a `plot()` function:
+
+
+```r
+plot(stm_40_effects, covariate = "pillar", topics = c(14, 36))
+```
+
+![](5_data_analysis_2_files/figure-html/unnamed-chunk-26-1.png)&lt;!-- --&gt;
+
+---
+
+# Adding covariates
+
+Use the `stiminsights` package to extract the values and have more options in plotting covariate effects:
+
+.pull-left[
+
+```r
+stminsights::get_effects(stm_40_effects, "pillar", "pointestimate") %&gt;% 
+  filter(topic %in% c(14, 32, 36)) %&gt;% 
+  ggplot(aes(x = topic, y = proportion, ymin = lower, ymax = upper, color = value, shape = value)) + 
+  geom_pointrange(position = position_dodge(.3)) +
+  coord_flip() +
+  theme_classic() +
+  scale_y_continuous("Topic proportion", labels = scales::percent) +
+  labs(x = "Topic", color = "Pillar", shape = "Pillar")
+```
+]
+
+.pull-right[
+![](5_data_analysis_2_files/figure-html/plot-cov-out-1.png)&lt;!-- --&gt;
+]
+
+---
+
+class: middle
+# Keyword-assisted topic models
+
+---
+
+# Keyword-assisted topic models with `keyATM`
+
+A more recent expansion of topic models are called **keyword-assisted topic models**. These models somewhat combine deductive and inductive approaches, by mainly following the unsupervised topic modeling procedure, but allow the specification of a-priori topics with keywords beforehand.
+
+--
+
+In R, the `keyATM` package may be used to fit keyword-assisted topic models:
+
+
+```r
+install.packages("keyATM")
+library(keyATM)
+```
+
+
+```
+## keyATM 0.4.0 successfully loaded.
+##  Papers, examples, resources, and other materials are at
+##  https://keyatm.github.io/keyATM/
+```
+
+---
+
+# Keyword-assisted topic models with `keyATM`
+
+Again, `keyATM` uses it's own format for modeling, but also provides a conversion function:
+
+
+```r
+keyATM_docs &lt;- keyATM_read(texts = trimmed_dfm)
+```
+
+```
+## Using quanteda dfm.
+```
+
+---
+
+# Defining a-priori topics with keywords
+
+Let's work with the guardian corpus again, but this time, add some a-priori topics to the modell. We first create a named list of a-priori topics and associated keywords:
+
+
+```r
+keywords &lt;- list(
+  "U.S. Election" = c("biden", "trump", "election"),
+  "Brexit" = c("brexit", "uk", "europe", "eu"),
+  "Football" = c("football", "league", "game")
+)
+```
+
+---
+
+# Defining a-priori topics with keywords
+
+`keyATM` kindly provides a function `visualize_keywords()` to inspect whether our keywords are actually useful by plotting their relative frequency. The authors suggest a proportion of at least 0.1% per keyword, but for larger corpora and more distinctive topics, lower numbers may be okay as well:
+
+
+```r
+visualize_keywords(keyATM_docs, keywords)
+```
+
+![](5_data_analysis_2_files/figure-html/unnamed-chunk-31-1.png)&lt;!-- --&gt;
+
+---
+
+
+# Model fitting
+
+We fit the model using the `keyATM()` function using the following arguments:
+
+- `docs` defines our DFM, which we have converted to the `keyATM` format.
+- `keywords` defines our a-priori topics with associated keywords.
+- `no_keyword_topics` defines the number of additional topics the model should estimate.
+- `model` specifies the model type; we are going to use the simple `"base"` model, but note that you may also use additional models that, for example, allow for covariate specification. See the [offical documentation](https://keyatm.github.io/keyATM/articles/pkgdown_files/keyATM_cov.html) for more details. 
+
+
+```r
+guardian_keyatm &lt;- keyATM(docs = keyATM_docs,
+                          keywords = keywords,
+                          no_keyword_topics = 37,
+                          model = "base")
+```
+
+
+```r
+guardian_keyatm &lt;- readRDS("offline_data/5/guardian_keyatm.rds")
+```
+
+---
+
+# Model selection
+
+We can measure and compare model fit using the `plot_modelfit()` function, which plots two model fit measures against the model fit iterations. *Log-likelihood* should stabilize on a high value, *perplexity* on a low value over time to indicate good model fit:
+
+
+```r
+plot_modelfit(guardian_keyatm)
+```
+
+![](5_data_analysis_2_files/figure-html/unnamed-chunk-34-1.png)&lt;!-- --&gt;
+
+---
+
+# Model selection
+
+We can also plot `\(\alpha\)`, the document-topic distribution prior, against model iterations. Again, values should stabilize over time to indicate good model fit. This indicates that the Brexit topic is probably not well defined by the keywords we chose:
+
+
+```r
+plot_alpha(guardian_keyatm)
+```
+
+![](5_data_analysis_2_files/figure-html/unnamed-chunk-35-1.png)&lt;!-- --&gt;
+
+---
+
+# Model interpretation
+
+Similarly to before, `top_words()` reports the most important words per topic. Note that the checkmark symbol indicates a-priori keywords for topics, numbers in square brackets `[]` indicate keywords from a a-priori topics appearing in other topics:
+
+
+```r
+top_words(guardian_keyatm, n = 7)
+```
+
+```
+##       1_U.S. Election      2_Brexit        3_Football Other_1 Other_2
+## 1    trump [&lt;U+2713&gt;] uk [&lt;U+2713&gt;] league [&lt;U+2713&gt;]     art climate
+## 2 election [&lt;U+2713&gt;]    government   game [&lt;U+2713&gt;]  london  energy
+##         Other_3 Other_4    Other_5 Other_6 Other_7 Other_8 Other_9 Other_10
+## 1        report vaccine  australia    year  family    like    film   people
+## 2 investigation  health australian company    died  people    show   health
+##   Other_11 Other_12 Other_13 Other_14   Other_15 Other_16    Other_17 Other_18
+## 1  workers students     fire   people government  climate coronavirus    local
+## 2     work   school    water     says    economy  species       cases     city
+##   Other_19 Other_20 Other_21 Other_22 Other_23  Other_24 Other_25   Other_26
+## 1     food     care business     book  fashion    people    china    johnson
+## 2      add   health lockdown    world    masks political  chinese government
+##   Other_27 Other_28 Other_29 Other_30 Other_31 Other_32 Other_33 Other_34
+## 1    women   police    music    first    media    court     says     like
+## 2    black   people    album    years     news     case      i'm     time
+##     Other_35 Other_36 Other_37
+## 1  australia      sea      pay
+## 2 australian    water    money
+##  [ reached 'max' / getOption("max.print") -- omitted 5 rows ]
+```
+
+---
+
+# Model interpretation
+
+Comparably, `top_docs()` reports the most important documents (index of the model DFM) per topic:
+
+
+```r
+top_docs(guardian_keyatm, n = 1)
+```
+
+```
+##                 apply(x$theta, 2, measuref)
+## 1_U.S. Election                        8556
+## 2_Brexit                               6995
+## 3_Football                             5960
+## Other_1                                4231
+## Other_2                                7919
+## Other_3                                5835
+## Other_4                                5742
+## Other_5                                1037
+## Other_6                                 235
+## Other_7                                7708
+## Other_8                                1073
+## Other_9                                 891
+## Other_10                               7638
+## Other_11                               4972
+## Other_12                               6892
+## Other_13                               7972
+## Other_14                               2020
+## Other_15                               4959
+## Other_16                               7593
+## Other_17                               2756
+## Other_18                               3518
+## Other_19                               5849
+## Other_20                               3629
+## Other_21                               4407
+## Other_22                               2111
+## Other_23                               1152
+## Other_24                               6139
+## Other_25                               6237
+## Other_26                               3317
+## Other_27                               5917
+## Other_28                               4194
+## Other_29                               2743
+## Other_30                                488
+## Other_31                               9622
+## Other_32                               1427
+## Other_33                               5472
+## Other_34                                 54
+## Other_35                               7899
+## Other_36                               1338
+## Other_37                               8662
+```
+
+---
+
+# Model interpretation
+
+Sadly, `keyATM` objects are not yet compatible with `tidy()`. However, we can access the `\(V \times K\)` (called `\(\phi\)` in this case) and `\(D \times K\)` (called `\(\theta\)` in this case) matrices directly from the model object:
+
+
+```r
+guardian_keyatm$phi
+guardian_keyatm$theta
+```
+
+---
+
+# Model intepretation
+
+Let's transform `\(\phi\)` and extract the 7 most important words per topic:
+
+
+```r
+top_terms &lt;- guardian_keyatm$phi %&gt;% 
+  t() %&gt;% 
+  as_tibble(rownames = "word") %&gt;% 
+  pivot_longer(-word, names_to = "topic", values_to = "phi") %&gt;% 
+  group_by(topic) %&gt;% 
+  top_n(7, phi) %&gt;% 
+  arrange(topic, desc(phi)) %&gt;% 
+  group_by(topic) %&gt;% 
+  summarise(top_words = paste(word, collapse = ", "), .groups = "drop")
+
+top_terms
+```
+
+```
+## # A tibble: 40 x 2
+##    topic          top_words                                                     
+##    &lt;chr&gt;          &lt;chr&gt;                                                         
+##  1 1_U.S. Electi~ trump, election, president, biden, us, trump's, donald        
+##  2 2_Brexit       uk, government, could, new, last, time, make                  
+##  3 3_Football     league, game, players, season, team, football, last           
+##  4 Other_1        art, london, arts, theatre, work, artists, festival           
+##  5 Other_10       people, health, coronavirus, home, covid-19, government, publ~
+##  6 Other_11       workers, work, working, employees, app, staff, company        
+##  7 Other_12       students, school, children, schools, education, university, u~
+##  8 Other_13       fire, water, california, people, state, fires, across         
+##  9 Other_14       people, says, many, like, us, work, time                      
+## 10 Other_15       government, economy, economic, people, crisis, year, pandemic 
+## # ... with 30 more rows
+```
+
+---
+
+# Model intepretation
+
+Similarly, extract mean topic proportions from `\(\theta\)`. Again, the proportion of the Brexit topic indicates that this was probably not the best specified topic:
+
+
+```r
+top_topics &lt;- guardian_keyatm$theta %&gt;% 
+  as_tibble(rownames = "document") %&gt;% 
+  pivot_longer(-document, names_to = "topic", values_to = "theta") %&gt;% 
+  group_by(topic) %&gt;% 
+  summarise(mean_theta = mean(theta), .groups = "drop") %&gt;% 
+  arrange(desc(mean_theta))
+
+top_topics
+```
+
+```
+## # A tibble: 40 x 2
+##    topic           mean_theta
+##    &lt;chr&gt;                &lt;dbl&gt;
+##  1 2_Brexit            0.239 
+##  2 3_Football          0.0765
+##  3 Other_34            0.0637
+##  4 Other_30            0.0514
+##  5 Other_14            0.0439
+##  6 Other_8             0.0366
+##  7 Other_22            0.0350
+##  8 Other_17            0.0350
+##  9 1_U.S. Election     0.0341
+## 10 Other_9             0.0305
+## # ... with 30 more rows
+```
+
+---
+
+# Model intepretation
+
+To create a similar plot as before, we can join both tibbles:
+
+
+```r
+top_topics %&gt;% 
+  left_join(top_terms, by = "topic") %&gt;%
+  mutate(topic = reorder(topic, mean_theta)) %&gt;% 
+  ggplot(aes(topic, mean_theta, label = top_words, fill = topic)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(hjust = 0, nudge_y = 0.0005, size = 3) +
+  coord_flip() +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.4), labels = scales::percent) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  labs(x = NULL, y = expression(theta))
+```
+
+---
+
+# Model interpretation
+
+![](5_data_analysis_2_files/figure-html/plot-keyatm-out-1.png)&lt;!-- --&gt;
+
+---
+
+class: middle
+
+# Validating topic models
+
+---
+
+# Validating topic models
+
+As topic models will _always_ output the desired number of topics, again, validation is key. For topic models, the following validation steps are common:
+
+- Computing data fit indices (e.g., semantic coherence, exclusivity)
+- Manually labelling and intepreting topics (duh)
+- Investigating meaningful relationships of results with other variables in the data (e.g., a terrorism topic should lead to higher scores in the aftermath of terrorist attacks)
+
+--
+
+Furthermore, for manual validation, we usually are not able to provide gold standards, as we did not define the topics ourselves. However, two methods were developed to manually validate how good topics can be interpreted by humans:
+
+- **Word intrusion test**: Randomly draw `n` words with high probabilities and `1` word with low probability from the same topic distribution. Human coders should then be able to identify the *intruder* word.
+- **Topic intrusion test**: Randomly drawn `n` topics with high probabilities and `1` topic with low probability from the same document distribution. Human coders should then be able to identify the *intruder* topic after reading through the document.
+- In both cases, we can then compute the precision of repeated word/topic intrusion tests for multiple topics/documents.
+
+---
+
+# Validating topic models with `oolong`
+
+Both tests are implemented in the `oolong` package know from last time:
+
+
+```r
+library(oolong)
+```
+
+--
+
+The workflow is quite simple:
+
+- Use `wi()` (word intrusion), `wsi()` (word-set intrusion; variant of word intrusion with sets of words instead of single words), and `ti()` to create the test object with the model object as input.
+- Use the associated method to do the actual test (`$do_xxx()`).
+- `$lock()` the object to display results.
+- `oolong()` objects can be cloned before doing the test to accomodate for multiple coders with `clone_oolong()`.
+- Use `summarize_oolong()` to compare the results of multiple tests.
+
+---
+
+# Word intrusion tests
+
+Example: Word intrusion test
+
+
+```r
+# Create and clone objects
+wi_test_coder_1 &lt;- wi(guardian_stm_40_cov, userid = "Coder 1")
+wi_test_coder_2 &lt;- clone_oolong(wi_test_coder_1, userid = "Coder 2")
+
+# Do the test
+wi_test_coder_1$do_word_intrusion_test()
+wi_test_coder_2$do_word_intrusion_test()
+
+# Lock
+wi_test_coder_1$lock()
+wi_test_coder_2$lock()
+
+# Summarize
+summarize_oolong(wi_test_coder_1, wi_test_coder_2)
+```
+
+---
+
+# Word intrusion tests
+
+Example: Word intrusion test
+
+![](img/5/oolong_wi.jpg)
+
+---
+
+# Word-set intrusion tests
+
+**Exercise 2: Validating topic models**
+
+Create an oolong object with `wsi()` on the `guardian_stm_40_cov` model and perform a word-set intrusion test. Good luck!
+
+&lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
+
+---
+
+# Topic intrusion tests
+
+**Exercise 3: Validating topic models**
+
+Create an oolong object with `ti()` on the `guardian_stm_40_cov` model and perform a topic intrusion test. Good luck!
+
+&lt;center&gt;&lt;img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif"&gt;&lt;/center&gt;
 
 ---
 
