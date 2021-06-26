@@ -34,6 +34,6 @@ Collecting digital trace data from social media via API requests, API wrapper pa
 
 ### Text Analysis in R, Part II: Topic Modeling (2021-06-28)
 
-- Slides: [HTML] / [PDF]
+- Slides: [HTML](5_data_analysis_2.html) / [PDF](slides/5_data_analysis_2.pdf)
 - Readings:
   - Maier, Daniel, Annie Waldherr, Peter Miltner, Gregor Wiedemann, Andreas Niekler, Alexa Keinert, Barbara Pfetsch, et al. 2018. „Applying LDA Topic Modeling in Communication Research: Toward a Valid and Reliable Methodology“. *Communication Methods and Measures* 12 (2–3): 93–118. [https://doi.org/10.1080/19312458.2018.1430754](https://doi.org/10.1080/19312458.2018.1430754).
