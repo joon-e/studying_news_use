@@ -571,7 +571,7 @@ Now to the one million dollar question: Do the values we just computed actually 
 
 - Comparing the results with (manual) gold standards
 - Computing data fit indices
-- Invesigating meaningful relationships of results with other variables in the data (e.g., a terrorism dictionary should lead to higher scores in the aftermath of terrorist attacks)
+- Investigating meaningful relationships of results with other variables in the data (e.g., a terrorism dictionary should lead to higher scores in the aftermath of terrorist attacks)
 
 ---
 
